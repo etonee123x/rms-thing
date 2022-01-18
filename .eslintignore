@@ -1,0 +1,4 @@
+dist/*.js
+node_modules/*
+src/vendor/*
+src/**/*.spec.js
