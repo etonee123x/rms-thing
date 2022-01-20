@@ -1,8 +1,8 @@
 <template>
   <div class="page">
-    <div class="page__title">Admin Page</div>
+    <div class="page__title">RMS testing page</div>
     <div class="page__content">
-      <BaseFileInput :allow-multiple="true" />
+      <BaseFileInput />
     </div>
   </div>
 </template>
