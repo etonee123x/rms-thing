@@ -2,17 +2,10 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import eslintPlugin from 'vite-plugin-eslint';
-// import vueI18n from '@intlify/vite-plugin-vue-i18n';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    eslintPlugin({ cache: false }),
-    // vueI18n({
-    //   include: path.resolve(__dirname, './path/to/src/locales/**'),
-    // }),
-  ], // TODO: check update for the cache in eslint plugin
+  plugins: [vue(), eslintPlugin({ cache: false })], // TODO: check update for the cache in eslint plugin
   resolve: {
     alias: [
       {
@@ -25,9 +18,8 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         additionalData: `
-        @import "./src/assets/themes/blue.scss";
         @import "./src/assets/styles/variables.scss";
-        @import "./src/assets/styles/mixins/mixins.scss";
+        @import "./src/assets/styles/mixins.scss";
     `,
       },
     },
