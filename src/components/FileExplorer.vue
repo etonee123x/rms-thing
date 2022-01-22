@@ -1,7 +1,6 @@
 <template>
     <ul class="file-explorer">
         <li v-for="file in files" :key="file.name" v-text="file.name"></li>
-        <li>puls</li>
     </ul>
 </template>
 <script>
