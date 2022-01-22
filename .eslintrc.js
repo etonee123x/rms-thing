@@ -19,6 +19,7 @@ module.exports = {
   },
   rules: {
     strict: 0,
+    camelcase: 'warn',
     'prettier/prettier': 'warn',
     curly: ['error', 'multi'],
     'no-plusplus': [2, { allowForLoopAfterthoughts: true }],

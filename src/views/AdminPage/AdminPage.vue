@@ -12,6 +12,7 @@
 import BaseFileInput from '@/components/BaseFileUploader.vue';
 import FileExplorer from '@/components/FileExplorer.vue';
 import { ref } from 'vue';
+
 const theFilesArray = ref<File[]>([]);
 
 const uploaded = function (filesArray: File[]) {
