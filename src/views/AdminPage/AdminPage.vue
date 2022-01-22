@@ -2,8 +2,8 @@
   <div class="page">
     <div class="page__title">Admin page</div>
     <div class="page__content">
-      <BaseFileInput :allow-multiple="true" @uploaded="uploaded" />
-      <FileExplorer :files="theFilesArray" />
+      <BaseFileInput :allow-multiple="true" class="page__file-input" @uploaded="uploaded" />
+      <FileExplorer :files="theFilesArray" class="page__file-explorer" />
     </div>
   </div>
 </template>
@@ -14,10 +14,9 @@ import FileExplorer from '@/components/FileExplorer.vue';
 import { ref } from 'vue';
 const theFilesArray = ref<File[]>([]);
 
-const uploaded = function(filesArray: File[])
-{
-    theFilesArray.value = filesArray;
-}
+const uploaded = function (filesArray: File[]) {
+  theFilesArray.value = filesArray;
+};
 </script>
 
 <style scoped lang="scss">
