@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <div class="page__title">Admin Page</div>
+    <div class="page__title">Admin page</div>
     <div class="page__content">
       <BaseFileInput :allow-multiple="true" @uploaded="uploaded" />
       <FileExplorer :files="theFilesArray" />
@@ -24,6 +24,7 @@ const uploaded = function(filesArray: File[])
 .page {
   &__title {
     @include font-page-title;
+    margin: 0 0 1rem 1rem;
   }
 }
 </style>
