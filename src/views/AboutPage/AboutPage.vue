@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <div class="page__title">About Page</div>
+    <div class="page__title">About page</div>
     <div class="page__content"></div>
   </div>
 </template>
@@ -11,6 +11,7 @@
 .page {
   &__title {
     @include font-page-title;
+    margin: 0 0 1rem 1rem;
   }
 }
 </style>
