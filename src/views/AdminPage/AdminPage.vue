@@ -26,5 +26,10 @@ const uploaded = function (filesArray: File[]) {
     @include font-page-title;
     margin: 0 0 1rem 1rem;
   }
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 </style>

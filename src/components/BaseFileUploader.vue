@@ -1,5 +1,7 @@
 <template>
-  <input :multiple="props.allowMultiple" type="file" @change="uploaded" />
+  <div class="file-input">
+    <input :multiple="props.allowMultiple" class="file-input__input" type="file" @change="uploaded" />
+  </div>
 </template>
 
 <script setup lang="ts">

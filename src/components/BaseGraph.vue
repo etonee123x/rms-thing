@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { Results } from '@/functions/RMSHandler';
-const props = withDefaults(defineProps<{ results?: Results | null }>(), { results: null });
+const props = withDefaults(defineProps<{ results: Results | null }>(), { results: null });
 </script>
 
 <style></style>
