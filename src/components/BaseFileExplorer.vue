@@ -1,7 +1,11 @@
 <template>
   <div class="file-explorer">
     <div class="file-explorer__content">
-      <div v-for="(file, idx) in files" :key="idx" class="file-explorer__item-wrapper">
+      <div
+        v-for="(file, idx) in files"
+        :key="idx"
+        class="file-explorer__item-wrapper"
+      >
         <div class="file-explorer__item">
           <div class="file-explorer__item-title">
             {{ titleWithoutExt(file.name) }}
@@ -34,7 +38,7 @@ const titleWithoutExt = (title: string) => {
     box-shadow: 0px 0px 0px 1px grey inset;
     align-content: flex-start;
     display: flex;
-    height: 40rem;
+    max-height: 40rem;
     flex-wrap: wrap;
     overflow-y: auto;
   }

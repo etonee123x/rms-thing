@@ -21,7 +21,8 @@ module.exports = {
     strict: 0,
     camelcase: 'warn',
     'prettier/prettier': 'warn',
-    curly: ['error', 'multi'],
+    curly: ['warn', 'multi'],
+    'max-len': ['warn', { code: 80 }],
     'no-plusplus': [2, { allowForLoopAfterthoughts: true }],
     'import/extensions': [
       'warn',

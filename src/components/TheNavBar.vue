@@ -1,7 +1,11 @@
 <template>
   <div class="the-navbar">
     <div class="the-navbar__main">
-      <div v-for="(item, idx) in navbarItems" :key="idx" class="the-navbar__item">
+      <div
+        v-for="(item, idx) in navbarItems"
+        :key="idx"
+        class="the-navbar__item"
+      >
         <router-link :to="item.route">
           <div class="the-navbar__item-title">
             {{ item.title }}

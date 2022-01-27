@@ -18,7 +18,7 @@ import TheNavBar from './components/TheNavBar.vue';
   }
   &__main {
     width: 80%;
-    margin: 1rem auto 0 auto;
+    margin: 1rem auto;
   }
 }
 </style>

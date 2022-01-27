@@ -26,9 +26,9 @@ export interface Results {
     end: Time;
   };
   rms_values: {
-    rms_array: number[];
     rms_interval: Interval;
     confidence_interval: Interval | null;
+    rms_array: number[];
   };
 }
 
@@ -36,7 +36,11 @@ export default class RMSHandler {
   public theBuffer: Buffer = Buffer.from([]);
   private blocksNumber?: number;
   private headers: IWAVHeaders = {} as IWAVHeaders;
-  private channels: { left: number[]; right: number[] } = { left: [], right: [] };
+  private channels: { left: number[]; right: number[] } = {
+    left: [],
+    right: [],
+  };
+
   private blocksPerNSeconds?: number;
   private blocksPerMMilliSeconds?: number;
   private theLoudestSegment?: { start: number; end: number };
@@ -46,7 +50,7 @@ export default class RMSHandler {
 
   static readonly N_SECONDS_TO_CHECK = 10;
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
-  private static readonly K_BLOCKS = Math.pow(2, 6);
+  private static readonly K_BLOCKS = Math.pow(2, 3);
 
   public fromBuffer(buffer: Buffer | Uint8Array): RMSHandler {
     this.theBuffer = Buffer.from(buffer);
@@ -57,7 +61,8 @@ export default class RMSHandler {
     const riff = this.theBuffer.slice(0, 4);
     if (riff.toString() !== 'RIFF') throw new Error('this is not wav file');
     this.headers.channelsNumber = this.theBuffer.readUInt16LE(22);
-    if (this.headers.channelsNumber !== 2) throw new Error("this wav file doesn't have 2 channels");
+    if (this.headers.channelsNumber !== 2)
+      throw new Error("this wav file doesn't have 2 channels");
     this.headers.sampleRate = this.theBuffer.readUInt32LE(24);
     this.headers.byteRate = this.theBuffer.readUInt32LE(28);
     this.headers.blockAlign = this.theBuffer.readUInt16LE(32);
@@ -67,23 +72,33 @@ export default class RMSHandler {
   }
 
   private findBlockLengths() {
-    const blocksPerSecondInASingleChannel = this.headers.byteRate / (this.headers.blockAlign * RMSHandler.K_BLOCKS);
-    this.blocksPerNSeconds = Math.floor(blocksPerSecondInASingleChannel * RMSHandler.N_SECONDS_TO_CHECK);
+    const blocksPerSecondInASingleChannel =
+      this.headers.byteRate / (this.headers.blockAlign * RMSHandler.K_BLOCKS);
+    this.blocksPerNSeconds = Math.floor(
+      blocksPerSecondInASingleChannel * RMSHandler.N_SECONDS_TO_CHECK,
+    );
     this.blocksPerMMilliSeconds = Math.floor(
-      (blocksPerSecondInASingleChannel * RMSHandler.M_MILLISECONDS_TO_CHECK) / 1000,
+      (blocksPerSecondInASingleChannel * RMSHandler.M_MILLISECONDS_TO_CHECK) /
+        1000,
     );
   }
 
   private parseWavToChannels() {
     if (this.headers.bitsPerSample === 16 && this.blocksNumber)
       for (let i = 0; i < this.blocksNumber; i += RMSHandler.K_BLOCKS) {
-        const blockData = this.theBuffer.slice(i * this.headers.blockAlign, (i + 1) * this.headers.blockAlign);
+        const blockData = this.theBuffer.slice(
+          i * this.headers.blockAlign,
+          (i + 1) * this.headers.blockAlign,
+        );
         this.channels.left.push(blockData.readInt16LE(0));
         this.channels.right.push(blockData.readInt16LE(2));
       }
     else if (this.headers.bitsPerSample === 32 && this.blocksNumber)
       for (let i = 1; i < this.blocksNumber; i += RMSHandler.K_BLOCKS) {
-        const blockData = this.theBuffer.slice(i * this.headers.blockAlign, (i + 1) * this.headers.blockAlign);
+        const blockData = this.theBuffer.slice(
+          i * this.headers.blockAlign,
+          (i + 1) * this.headers.blockAlign,
+        );
         this.channels.left.push(blockData.readInt32LE(0));
         this.channels.right.push(blockData.readInt32LE(4));
       }
@@ -91,7 +106,8 @@ export default class RMSHandler {
   }
 
   private findTheLoudestSegment() {
-    if (!this.blocksPerNSeconds) throw new Error('blocksPerNSeconds not defined');
+    if (!this.blocksPerNSeconds)
+      throw new Error('blocksPerNSeconds not defined');
     const theLoudest = {
       index: 0,
       loudness: 0,
@@ -104,11 +120,17 @@ export default class RMSHandler {
     theLoudest.loudness = loudnessValue;
     theLoudest.index = 0;
 
-    for (let i = 0; i <= this.channels.left.length - this.blocksPerNSeconds; i++) {
+    for (
+      let i = 0;
+      i <= this.channels.left.length - this.blocksPerNSeconds;
+      i++
+    ) {
       let channelsSum = (this.channels.left[i] + this.channels.right[i]) / 2;
       loudnessValue -= Math.pow(channelsSum, 2) / this.blocksPerNSeconds;
       channelsSum =
-        (this.channels.left[i + this.blocksPerNSeconds + 1] + this.channels.right[i + this.blocksPerNSeconds + 1]) / 2;
+        (this.channels.left[i + this.blocksPerNSeconds + 1] +
+          this.channels.right[i + this.blocksPerNSeconds + 1]) /
+        2;
       loudnessValue += Math.pow(channelsSum, 2) / this.blocksPerNSeconds;
       if (loudnessValue > theLoudest.loudness) {
         theLoudest.loudness = loudnessValue;
@@ -123,10 +145,16 @@ export default class RMSHandler {
   }
 
   private getRmsInTheLoudestSegment() {
-    if (!this.theLoudestSegment) throw new Error('theLoudestSegment not defined');
-    if (!this.blocksPerMMilliSeconds) throw new Error('blocksPerMMilliSeconds not defined');
+    if (!this.theLoudestSegment)
+      throw new Error('theLoudestSegment not defined');
+    if (!this.blocksPerMMilliSeconds)
+      throw new Error('blocksPerMMilliSeconds not defined');
     this.segmentRmsDbValues = [];
-    for (let i = this.theLoudestSegment.start; i < this.theLoudestSegment.end - this.blocksPerMMilliSeconds; i++) {
+    for (
+      let i = this.theLoudestSegment.start;
+      i < this.theLoudestSegment.end - this.blocksPerMMilliSeconds;
+      i++
+    ) {
       let segmentRms = 0;
       for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
         const lc = this.channels.left[i + j];
@@ -137,7 +165,9 @@ export default class RMSHandler {
         segmentRms += semiSumPow2DivN;
       }
       segmentRms = Math.sqrt(segmentRms) * Math.sqrt(2);
-      const dB = 20 * Math.log10(segmentRms / Math.pow(2, this.headers.bitsPerSample - 1));
+      const dB =
+        20 *
+        Math.log10(segmentRms / Math.pow(2, this.headers.bitsPerSample - 1));
       this.segmentRmsDbValues.push(Number(dB.toFixed(2)));
     }
   }
@@ -159,30 +189,41 @@ export default class RMSHandler {
       minutes: RMSHandler.toMinutes(duration),
       seconds: RMSHandler.toSeconds(duration),
     };
-    if (!this.theLoudestSegment) throw new Error('theLoudestSegment not defined');
+    if (!this.theLoudestSegment)
+      throw new Error('theLoudestSegment not defined');
     if (!this.pointsNumber) throw new Error('pointsNumber not defined');
     const theLoudestSegment = {
       start: {
-        minutes: RMSHandler.toMinutes((this.theLoudestSegment.start / this.pointsNumber) * duration),
-        seconds: RMSHandler.toSeconds((this.theLoudestSegment.start / this.pointsNumber) * duration),
+        minutes: RMSHandler.toMinutes(
+          (this.theLoudestSegment.start / this.pointsNumber) * duration,
+        ),
+        seconds: RMSHandler.toSeconds(
+          (this.theLoudestSegment.start / this.pointsNumber) * duration,
+        ),
       },
       end: {
-        minutes: RMSHandler.toMinutes((this.theLoudestSegment.end / this.pointsNumber) * duration),
-        seconds: RMSHandler.toSeconds((this.theLoudestSegment.end / this.pointsNumber) * duration),
+        minutes: RMSHandler.toMinutes(
+          (this.theLoudestSegment.end / this.pointsNumber) * duration,
+        ),
+        seconds: RMSHandler.toSeconds(
+          (this.theLoudestSegment.end / this.pointsNumber) * duration,
+        ),
       },
     };
     const rmsIntervals = {
       min: Math.min(...this.segmentRmsDbValues),
       max: Math.max(...this.segmentRmsDbValues),
     };
-    const confidenceIntervals = RMSHandler.getIntervals(this.segmentRmsDbValues);
+    const confidenceIntervals = RMSHandler.getIntervals(
+      this.segmentRmsDbValues,
+    );
     this.results = {
       audio_duration: audioDuration,
       the_loudest_segment: theLoudestSegment,
       rms_values: {
-        rms_array: this.segmentRmsDbValues,
         rms_interval: rmsIntervals,
         confidence_interval: confidenceIntervals,
+        rms_array: this.segmentRmsDbValues,
       },
     };
     return this.results;
@@ -203,9 +244,14 @@ export default class RMSHandler {
     let avgValue = 0;
     for (let i = 0; i < arr.length; i++) avgValue += arr[i] / arr.length;
     let d = 0;
-    for (let i = 0; i < arr.length; i++) d += ((arr[i] - avgValue) * (arr[i] - avgValue)) / arr.length;
+    for (let i = 0; i < arr.length; i++)
+      d += ((arr[i] - avgValue) * (arr[i] - avgValue)) / arr.length;
     const sigma = Math.sqrt(d);
-    if (avgValue - SIGMAS * sigma < Math.min(...arr) || avgValue + SIGMAS * sigma > Math.max(...arr)) return null;
+    if (
+      avgValue - SIGMAS * sigma < Math.min(...arr) ||
+      avgValue + SIGMAS * sigma > Math.max(...arr)
+    )
+      return null;
     return {
       min: Math.floor((avgValue - SIGMAS * sigma) * 100) / 100,
       max: Math.floor((avgValue + SIGMAS * sigma) * 100) / 100,
