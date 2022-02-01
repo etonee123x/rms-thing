@@ -1,11 +1,6 @@
 <template>
   <div class="file-input">
-    <input
-      :multiple="props.allowMultiple"
-      class="file-input__input"
-      type="file"
-      @change="uploaded"
-    />
+    <input :multiple="props.allowMultiple" class="file-input__input" type="file" @change="uploaded" />
   </div>
 </template>
 
@@ -30,8 +25,7 @@ const uploaded = (e: Event) => {
   if (!target.files) return;
   const filesArray = Array.from((target.files as FileList)[Symbol.iterator]());
   const allowedFilesArray = filesArray.filter(file => validate(file));
-  if (filesWithBadValidation.length)
-    emit('badValidation', filesWithBadValidation);
+  if (filesWithBadValidation.length) emit('badValidation', filesWithBadValidation);
   emit('uploaded', allowedFilesArray);
 };
 

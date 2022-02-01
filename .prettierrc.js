@@ -6,6 +6,6 @@ module.exports = {
   singleQuote: true,
   tabWidth: 2,
   trailingComma: 'all',
-  printWidth: 80,
+  printWidth: 120,
   cssEnable: ['css', 'scss'],
 };

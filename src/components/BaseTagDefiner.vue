@@ -1,11 +1,7 @@
 <template>
   <div class="tag-definer">
     <div v-for="(tag, idx) in tags" :key="idx" class="tag-definer__tag-wrapper">
-      <BaseTagItem
-        :view="tag.view"
-        :tag-type="tag.tagType"
-        class="tag-definer__tag-item"
-      >
+      <BaseTagItem :view="tag.view" :tag-type="tag.tagType" class="tag-definer__tag-item">
         {{ tag.title }}
       </BaseTagItem>
     </div>

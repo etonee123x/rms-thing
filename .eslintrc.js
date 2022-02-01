@@ -22,7 +22,7 @@ module.exports = {
     camelcase: 'warn',
     'prettier/prettier': 'warn',
     curly: ['warn', 'multi'],
-    'max-len': ['warn', { code: 80 }],
+    'max-len': ['warn', { code: 120 }],
     'no-plusplus': [2, { allowForLoopAfterthoughts: true }],
     'import/extensions': [
       'warn',

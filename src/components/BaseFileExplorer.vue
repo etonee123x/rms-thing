@@ -1,11 +1,7 @@
 <template>
   <div class="file-explorer">
     <div class="file-explorer__content">
-      <div
-        v-for="(file, idx) in files"
-        :key="idx"
-        class="file-explorer__item-wrapper"
-      >
+      <div v-for="(file, idx) in files" :key="idx" class="file-explorer__item-wrapper">
         <div class="file-explorer__item">
           <div class="file-explorer__item-title">
             {{ titleWithoutExt(file.name) }}
