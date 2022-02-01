@@ -5,7 +5,6 @@
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
       <BaseGraph class="page__graph" :results="rmsScriptAnswer" />
     </div>
-    <pre>{{ rmsScriptAnswer }}</pre>
   </div>
 </template>
 
@@ -20,8 +19,9 @@ const rmsScriptAnswer = ref<Results | null>(null);
 
 const uploaded = async (filesArray: File[]) => {
   const wavData = await convertSingleFile(filesArray[0]);
-  const rmsHandler = new RMSHandler().fromBuffer(wavData);
-  rmsScriptAnswer.value = rmsHandler.formInfo();
+  const rmsHandler = new RMSHandler(wavData);
+  rmsScriptAnswer.value = rmsHandler.getResults();
+  console.log(rmsScriptAnswer.value);
 };
 </script>
 
