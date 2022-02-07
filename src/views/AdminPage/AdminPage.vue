@@ -22,9 +22,9 @@
 
 <script setup lang="ts">
 import BaseFileInput from '@/components/BaseFileUploader.vue';
-import FileExplorer from '@/components/BaseFileExplorer.vue';
+import FileExplorer from '@/components/FileExplorer.vue';
 import { useAdminStore } from '@/stores/admin';
-import BaseTagDefiner from '@/components/BaseTagDefiner.vue';
+import BaseTagDefiner from '@/components/TagDefiner.vue';
 const adminStore = useAdminStore();
 
 const uploaded = (filesArray: File[]) => {

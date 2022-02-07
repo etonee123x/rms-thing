@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import BaseFileInput from '@/components/BaseFileUploader.vue';
-import BaseGraph from '@/components/BaseGraph.vue';
+import BaseGraph from '@/components/.vue';
 import RMSHandler, { Results } from '@/functions/RMSHandler';
 import { convertSingleFile } from '@/functions/converters';
 
