@@ -3,7 +3,8 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <BaseGraph class="page__graph" :results="rmsScriptAnswer" />
+      <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
+      <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
     </div>
   </div>
 </template>
@@ -11,17 +12,22 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import BaseFileInput from '@/components/BaseFileUploader.vue';
-import BaseGraph from '@/components/.vue';
-import RMSHandler, { Results } from '@/functions/RMSHandler';
+import { GraphRMSValues, GraphSpectrum } from '@/components/graphs';
+import TheAnalyzer, { RMSValues, SpectrumValues } from '@/functions/RMSHandler';
 import { convertSingleFile } from '@/functions/converters';
 
-const rmsScriptAnswer = ref<Results | null>(null);
+const rmsValues = ref<RMSValues | null>(null);
+const spectrumValues = ref<SpectrumValues | null>(null);
 
 const uploaded = async (filesArray: File[]) => {
   const wavData = await convertSingleFile(filesArray[0]);
-  const rmsHandler = new RMSHandler(wavData);
-  rmsScriptAnswer.value = rmsHandler.getResults();
-  console.log(rmsScriptAnswer.value);
+  const theAnalyzer = new TheAnalyzer(wavData);
+
+  rmsValues.value = theAnalyzer.getRMS();
+  console.log(rmsValues.value);
+
+  spectrumValues.value = theAnalyzer.getSpectrum();
+  console.log(spectrumValues.value);
 };
 </script>
 

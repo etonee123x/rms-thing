@@ -3,12 +3,13 @@
 </template>
 
 <script setup lang="ts">
+import { SpectrumValues } from '@/functions/RMSHandler';
 const props = withDefaults(
   defineProps<{
-    spectrumArray: number[][] | null;
+    spectrumValues: SpectrumValues | null;
   }>(),
   {
-    spectrumArray: null,
+    spectrumValues: null,
   },
 );
 </script>
