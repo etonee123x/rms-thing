@@ -32,7 +32,7 @@ export type RMSValues = {
   h: IntervalAndList;
 };
 
-export type SpectrumValues = number[][];
+export type SpectrumValues = Float32Array[];
 
 type AudioSegment = {
   start: number;
@@ -117,6 +117,286 @@ interface Freqs {
   h: Band;
 }
 
+class FourierTransform {
+  protected readonly bufferSize: number;
+  private readonly sampleRate: number;
+  private readonly bandwidth: number;
+  protected peakBand: number;
+  protected peak: number;
+  protected readonly spectrum: Float32Array;
+  private readonly real: Float32Array;
+  private readonly imag: Float32Array;
+  constructor(bufferSize: number, sampleRate: number) {
+    this.bufferSize = bufferSize;
+    this.sampleRate = sampleRate;
+    this.bandwidth = ((2 / bufferSize) * sampleRate) / 2;
+    this.spectrum = new Float32Array(bufferSize / 2);
+    this.real = new Float32Array(bufferSize);
+    this.imag = new Float32Array(bufferSize);
+    this.peakBand = 0;
+    this.peak = 0;
+  }
+
+  private getBandFrequency(index: number) {
+    return this.bandwidth * index + this.bandwidth / 2;
+  }
+
+  private calculateSpectrum() {
+    const spectrum = this.spectrum;
+    const real = this.real;
+    const imag = this.imag;
+    const bSi = 2 / this.bufferSize;
+    const sqrt = Math.sqrt;
+    let rval, ival, mag;
+
+    for (let i = 0, N = this.bufferSize / 2; i < N; i++) {
+      rval = real[i];
+      ival = imag[i];
+      mag = bSi * sqrt(rval * rval + ival * ival);
+
+      if (mag > this.peak) {
+        this.peakBand = i;
+        this.peak = mag;
+      }
+
+      spectrum[i] = mag;
+    }
+  }
+}
+
+class RFFT extends FourierTransform {
+  private readonly trans: Float32Array;
+  private readonly reverseTable: Uint32Array;
+  constructor(bufferSize: number, sampleRate: number) {
+    super(bufferSize, sampleRate);
+    this.trans = new Float32Array(bufferSize);
+    this.reverseTable = new Uint32Array(bufferSize);
+    this.generateReverseTable();
+  }
+
+  private reverseBinPermute(dest: Float32Array, source: Float32Array) {
+    const bufferSize = this.bufferSize;
+    const halfSize = bufferSize >>> 1;
+    const nm1 = bufferSize - 1;
+    let i = 1;
+    let r = 0;
+    let h;
+
+    dest[0] = source[0];
+
+    do {
+      r += halfSize;
+      dest[i] = source[r];
+      dest[r] = source[i];
+
+      i++;
+
+      h = halfSize << 1;
+      while (((h = h >> 1), !((r ^= h) & h)));
+
+      if (r >= i) {
+        dest[i] = source[r];
+        dest[r] = source[i];
+
+        dest[nm1 - i] = source[nm1 - r];
+        dest[nm1 - r] = source[nm1 - i];
+      }
+      i++;
+    } while (i < halfSize);
+    dest[nm1] = source[nm1];
+  }
+
+  private generateReverseTable() {
+    const bufferSize = this.bufferSize;
+    const halfSize = bufferSize >>> 1;
+    const nm1 = bufferSize - 1;
+    let i = 1;
+    let r = 0;
+    let h;
+
+    this.reverseTable[0] = 0;
+
+    do {
+      r += halfSize;
+
+      this.reverseTable[i] = r;
+      this.reverseTable[r] = i;
+
+      i++;
+
+      h = halfSize << 1;
+      while (((h = h >> 1), !((r ^= h) & h)));
+
+      if (r >= i) {
+        this.reverseTable[i] = r;
+        this.reverseTable[r] = i;
+
+        this.reverseTable[nm1 - i] = nm1 - r;
+        this.reverseTable[nm1 - r] = nm1 - i;
+      }
+      i++;
+    } while (i < halfSize);
+
+    this.reverseTable[nm1] = nm1;
+  }
+
+  public forward(buffer: Float32Array) {
+    const n = this.bufferSize;
+    const spectrum = this.spectrum;
+    const x = this.trans;
+    const TWO_PI = 2 * Math.PI;
+    const sqrt = Math.sqrt;
+    let i = n >>> 1;
+    const bSi = 2 / n;
+    let n2, n4, n8, nn, t1, t2, t3, t4, i1, i2, i3, i4, i5, i6, i7, i8, st1, cc1, ss1, cc3, ss3, e, a, rval, ival, mag;
+
+    let ix, i0, id;
+
+    this.reverseBinPermute(x, buffer);
+
+    for (ix = 0, id = 4; ix < n; id *= 4) {
+      for (i0 = ix; i0 < n; i0 += id) {
+        st1 = x[i0] - x[i0 + 1];
+        x[i0] += x[i0 + 1];
+        x[i0 + 1] = st1;
+      }
+      ix = 2 * (id - 1);
+    }
+
+    n2 = 2;
+    nn = n >>> 1;
+
+    while ((nn = nn >>> 1)) {
+      ix = 0;
+      n2 = n2 << 1;
+      id = n2 << 1;
+      n4 = n2 >>> 2;
+      n8 = n2 >>> 3;
+      do {
+        if (n4 !== 1)
+          for (i0 = ix; i0 < n; i0 += id) {
+            i1 = i0;
+            i2 = i1 + n4;
+            i3 = i2 + n4;
+            i4 = i3 + n4;
+
+            t1 = x[i3] + x[i4];
+            x[i4] -= x[i3];
+            x[i3] = x[i1] - t1;
+            x[i1] += t1;
+
+            i1 += n8;
+            i2 += n8;
+            i3 += n8;
+            i4 += n8;
+
+            t1 = x[i3] + x[i4];
+            t2 = x[i3] - x[i4];
+
+            t1 = -t1 * Math.SQRT1_2;
+            t2 *= Math.SQRT1_2;
+
+            st1 = x[i2];
+            x[i4] = t1 + st1;
+            x[i3] = t1 - st1;
+
+            x[i2] = x[i1] - t2;
+            x[i1] += t2;
+          }
+        else
+          for (i0 = ix; i0 < n; i0 += id) {
+            i1 = i0;
+            i2 = i1 + n4;
+            i3 = i2 + n4;
+            i4 = i3 + n4;
+
+            t1 = x[i3] + x[i4];
+            x[i4] -= x[i3];
+
+            x[i3] = x[i1] - t1;
+            x[i1] += t1;
+          }
+
+        ix = (id << 1) - n2;
+        id = id << 2;
+      } while (ix < n);
+
+      e = TWO_PI / n2;
+
+      for (let j = 1; j < n8; j++) {
+        a = j * e;
+        ss1 = Math.sin(a);
+        cc1 = Math.cos(a);
+
+        cc3 = 4 * cc1 * (cc1 * cc1 - 0.75);
+        ss3 = 4 * ss1 * (0.75 - ss1 * ss1);
+
+        ix = 0;
+        id = n2 << 1;
+        do {
+          for (i0 = ix; i0 < n; i0 += id) {
+            i1 = i0 + j;
+            i2 = i1 + n4;
+            i3 = i2 + n4;
+            i4 = i3 + n4;
+
+            i5 = i0 + n4 - j;
+            i6 = i5 + n4;
+            i7 = i6 + n4;
+            i8 = i7 + n4;
+
+            t2 = x[i7] * cc1 - x[i3] * ss1;
+            t1 = x[i7] * ss1 + x[i3] * cc1;
+
+            t4 = x[i8] * cc3 - x[i4] * ss3;
+            t3 = x[i8] * ss3 + x[i4] * cc3;
+
+            st1 = t2 - t4;
+            t2 += t4;
+            t4 = st1;
+
+            x[i8] = t2 + x[i6];
+            x[i3] = t2 - x[i6];
+
+            st1 = t3 - t1;
+            t1 += t3;
+            t3 = st1;
+
+            x[i4] = t3 + x[i2];
+            x[i7] = t3 - x[i2];
+
+            x[i6] = x[i1] - t1;
+            x[i1] += t1;
+
+            x[i2] = t4 + x[i5];
+            x[i5] -= t4;
+          }
+
+          ix = (id << 1) - n2;
+          id = id << 2;
+        } while (ix < n);
+      }
+    }
+
+    while (--i) {
+      rval = x[i];
+      ival = x[n - i - 1];
+      mag = bSi * sqrt(rval * rval + ival * ival);
+
+      if (mag > this.peak) {
+        this.peakBand = i;
+        this.peak = mag;
+      }
+
+      spectrum[i] = mag;
+    }
+
+    spectrum[0] = bSi * x[0];
+
+    return spectrum;
+  }
+}
+
 export default class TheAnalyzer {
   private blocksPerNSeconds: number;
   private blocksPerMMilliSeconds: number;
@@ -144,6 +424,8 @@ export default class TheAnalyzer {
   private static readonly MAX_16_INT_VALUE = Math.pow(2, 15);
   private static readonly RESONANCE = Math.sqrt(2);
   private static readonly RMS_GETTING_T = 0.1;
+  private static readonly WINDOW_SIZE = 8192;
+  private static readonly SAMPLE_RATE = 44100;
 
   constructor(buffer: Buffer) {
     this.wavData = { compressionRate: TheAnalyzer.COMPRESSION_RATE };
@@ -352,7 +634,17 @@ export default class TheAnalyzer {
 
   public getSpectrum(): SpectrumValues {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
-    return [];
+    const result: Float32Array[] = [];
+    const rfftMonster = new RFFT(TheAnalyzer.WINDOW_SIZE, TheAnalyzer.SAMPLE_RATE);
+    for (let i = 0; (i + 1) * TheAnalyzer.WINDOW_SIZE < this.wavData.theLoudestSegment.channels.left.length; i++) {
+      const segment = this.wavData.theLoudestSegment.channels.left.slice(
+        i * TheAnalyzer.WINDOW_SIZE,
+        (i + 1) * TheAnalyzer.WINDOW_SIZE,
+      );
+      const spectrum = rfftMonster.forward(segment);
+      result.push(new Float32Array(spectrum));
+    }
+    return result;
   }
 
   public getTheLoudestSegment(): AudioSegment {
