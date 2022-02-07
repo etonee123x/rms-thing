@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import BaseTagItem from './BaseTagItem.vue';
+import BaseTagItem from './TagDefinerItem.vue';
 import { TagType } from '@/types';
 const tags: TagType[] = [
   {
