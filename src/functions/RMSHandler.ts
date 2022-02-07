@@ -3,63 +3,59 @@
 */
 import { Buffer } from 'buffer';
 
-interface Headers {
+type Headers = {
   channelsNumber: number;
   sampleRate: number;
   byteRate: number;
   blockAlign: number;
   bitsPerSample: number;
-}
+};
 
-interface Channels {
+type Channels = {
   left: Float32Array;
   right: Float32Array;
-}
-interface IntervalAndList {
+};
+
+type IntervalAndList = {
   interval: {
     min: number;
     max: number;
   };
   list: number[];
-}
-interface RMSValues {
-  all?: IntervalAndList;
-  b?: IntervalAndList;
-  lm?: IntervalAndList;
-  hm?: IntervalAndList;
-  h?: IntervalAndList;
-}
+};
 
-interface AudioSegment {
+export type RMSValues = {
+  all: IntervalAndList;
+  b: IntervalAndList;
+  lm: IntervalAndList;
+  hm: IntervalAndList;
+  h: IntervalAndList;
+};
+
+export type SpectrumValues = number[][];
+
+type AudioSegment = {
   start: number;
   end: number;
-}
+};
 
-interface TheLoudestSegment {
-  borders?: AudioSegment;
-  channels?: Channels;
-  compressedChannels?: Channels;
-  rmsValues?: RMSValues;
-}
+type TheLoudestSegment = {
+  borders: AudioSegment;
+  channels: Channels;
+};
 
-interface WavData {
+type WavData = {
   headers?: Headers;
   compressionRate: number;
   compressedChannels?: Channels;
   duration?: number;
   theLoudestSegment?: TheLoudestSegment;
-}
-
-export interface Results {
-  the_loudest_segment: AudioSegment;
-  rms: RMSValues;
-  time_to_process?: number;
-}
+};
 
 class Filter {
+  private static readonly SAMPLE_RATE = 44100;
   private outPrev = 0;
   private outPrevPrev = 0;
-  private static readonly SAMPLE_RATE = 44100;
   private c!: number;
   private a1!: number;
   private a2!: number;
@@ -121,120 +117,66 @@ interface Freqs {
   h: Band;
 }
 
-export default class RMSHandler {
-  private timeToProcess: number;
-  private blocksPerNSeconds?: number;
-  private blocksPerMMilliSeconds?: number;
+export default class TheAnalyzer {
+  private blocksPerNSeconds: number;
+  private blocksPerMMilliSeconds: number;
   private wavData: WavData;
   private bands: Freqs = {
     b: {
-      lp: new Filter(100, RMSHandler.RESONANCE),
+      lp: new Filter(100, TheAnalyzer.RESONANCE),
     },
     lm: {
-      lp: new Filter(2000, RMSHandler.RESONANCE),
-      hp: new Filter(100, RMSHandler.RESONANCE, false),
+      lp: new Filter(2000, TheAnalyzer.RESONANCE),
+      hp: new Filter(100, TheAnalyzer.RESONANCE, false),
     },
     hm: {
-      lp: new Filter(10000, RMSHandler.RESONANCE),
-      hp: new Filter(2000, RMSHandler.RESONANCE, false),
+      lp: new Filter(10000, TheAnalyzer.RESONANCE),
+      hp: new Filter(2000, TheAnalyzer.RESONANCE, false),
     },
     h: {
-      hp: new Filter(10000, RMSHandler.RESONANCE, false),
+      hp: new Filter(10000, TheAnalyzer.RESONANCE, false),
     },
   };
 
   private static readonly N_SECONDS_TO_CHECK = 10;
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
   private static readonly COMPRESSION_RATE = 32;
-  private static readonly MAX_16_INT_VALUE = 32768;
+  private static readonly MAX_16_INT_VALUE = Math.pow(2, 15);
   private static readonly RESONANCE = Math.sqrt(2);
   private static readonly RMS_GETTING_T = 0.1;
 
   constructor(buffer: Buffer) {
-    const startTime = Date.now();
-    console.time('timer');
-    this.wavData = { compressionRate: RMSHandler.COMPRESSION_RATE };
+    this.wavData = { compressionRate: TheAnalyzer.COMPRESSION_RATE };
 
     this.wavData.headers = this.readHeaders(buffer);
-    console.timeLog('timer', 'red headers');
 
-    this.wavData.compressedChannels = RMSHandler.findValuesInChannels(
+    this.wavData.compressedChannels = TheAnalyzer.findValuesInChannels(
       buffer.slice(44, buffer.length),
       this.wavData.headers.blockAlign,
       this.wavData.compressionRate,
     );
-    console.timeLog('timer', 'found compressed channels values');
 
     this.wavData.duration =
       (this.wavData.compressedChannels.left.length * this.wavData.compressionRate) / this.wavData.headers.sampleRate;
-    console.timeLog('timer', 'found duration');
 
     const blocksPerSecondInASingleChannel =
       this.wavData.headers.byteRate / (this.wavData.headers.blockAlign * this.wavData.compressionRate);
-    this.blocksPerNSeconds = Math.ceil(blocksPerSecondInASingleChannel * RMSHandler.N_SECONDS_TO_CHECK);
+    this.blocksPerNSeconds = Math.ceil(blocksPerSecondInASingleChannel * TheAnalyzer.N_SECONDS_TO_CHECK);
     this.blocksPerMMilliSeconds = Math.ceil(
-      (blocksPerSecondInASingleChannel * RMSHandler.M_MILLISECONDS_TO_CHECK) / 1000,
+      (blocksPerSecondInASingleChannel * TheAnalyzer.M_MILLISECONDS_TO_CHECK) / 1000,
     );
 
-    this.wavData.theLoudestSegment = {};
+    const borders = this.findTheLoudestSegmentBorders();
 
-    this.wavData.theLoudestSegment.borders = this.findTheLoudestSegmentBorders();
-    console.timeLog('timer', 'found the loudest segment borders');
-
-    this.wavData.theLoudestSegment.channels = RMSHandler.findValuesInChannels(
+    const channels = TheAnalyzer.findValuesInChannels(
       buffer.slice(44, buffer.length),
       this.wavData.headers.blockAlign,
       1,
-      this.wavData.theLoudestSegment.borders.start * this.wavData.headers.blockAlign,
-      this.wavData.theLoudestSegment.borders.end * this.wavData.headers.blockAlign,
+      borders.start * this.wavData.headers.blockAlign,
+      borders.end * this.wavData.headers.blockAlign,
     );
 
-    this.wavData.theLoudestSegment.compressedChannels = RMSHandler.findValuesInChannels(
-      buffer.slice(44, buffer.length),
-      this.wavData.headers.blockAlign,
-      this.wavData.compressionRate,
-      this.wavData.theLoudestSegment.borders.start * this.wavData.headers.blockAlign,
-      this.wavData.theLoudestSegment.borders.end * this.wavData.headers.blockAlign,
-    );
-    console.timeLog('timer', 'found the loudest segment channels values');
-
-    this.wavData.theLoudestSegment.rmsValues = {};
-    this.wavData.theLoudestSegment.rmsValues.all = RMSHandler.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(this.wavData.theLoudestSegment.channels.left),
-    );
-    console.timeLog('timer', 'found all RMS values in the loudest segment');
-
-    this.wavData.theLoudestSegment.rmsValues.b = RMSHandler.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        RMSHandler.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.b),
-      ),
-    );
-    console.timeLog('timer', 'found bass RMS values in the loudest segment');
-
-    this.wavData.theLoudestSegment.rmsValues.lm = RMSHandler.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        RMSHandler.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.lm),
-      ),
-    );
-    console.timeLog('timer', 'found low-mid RMS values in the loudest segment');
-
-    this.wavData.theLoudestSegment.rmsValues.hm = RMSHandler.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        RMSHandler.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.hm),
-      ),
-    );
-    console.timeLog('timer', 'found high-mid RMS values in the loudest segment');
-
-    this.wavData.theLoudestSegment.rmsValues.h = RMSHandler.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        RMSHandler.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.h),
-      ),
-    );
-    console.timeLog('timer', 'found high RMS values in the loudest segment');
-
-    console.timeEnd('timer');
-    const endTime = Date.now();
-    this.timeToProcess = endTime - startTime;
+    this.wavData.theLoudestSegment = { borders, channels };
   }
 
   private readHeaders(buffer: Buffer): Headers {
@@ -276,8 +218,8 @@ export default class RMSHandler {
     let i = start ?? 0;
     const _end = (end ?? buffer.length) - 4;
     while (i < _end) {
-      result.left.push(buffer.readInt16LE(i) / RMSHandler.MAX_16_INT_VALUE);
-      result.right.push(buffer.readInt16LE(i + 2) / RMSHandler.MAX_16_INT_VALUE);
+      result.left.push(buffer.readInt16LE(i) / TheAnalyzer.MAX_16_INT_VALUE);
+      result.right.push(buffer.readInt16LE(i + 2) / TheAnalyzer.MAX_16_INT_VALUE);
       i += blockAlign * compressionRate;
     }
     return {
@@ -287,7 +229,6 @@ export default class RMSHandler {
   }
 
   private findTheLoudestSegmentBorders(): AudioSegment {
-    if (!this.blocksPerNSeconds) throw new Error('blocksPerNSeconds not defined');
     if (!this.wavData.compressedChannels) throw new Error('wavData.compressedChannels not defined');
     if (!this.wavData.headers) throw new Error('wavData.headers not defined');
     if (!this.wavData.headers.sampleRate) throw new Error('wavData.headers.sampleRate not defined');
@@ -316,24 +257,23 @@ export default class RMSHandler {
         theLoudest.index = i;
       }
     }
-    const theLoudestSegmentTrueStart = theLoudest.index * RMSHandler.COMPRESSION_RATE;
+    const theLoudestSegmentTrueStart = theLoudest.index * TheAnalyzer.COMPRESSION_RATE;
     return {
       start: theLoudestSegmentTrueStart,
-      end: theLoudestSegmentTrueStart + RMSHandler.N_SECONDS_TO_CHECK * this.wavData.headers.sampleRate,
+      end: theLoudestSegmentTrueStart + TheAnalyzer.N_SECONDS_TO_CHECK * this.wavData.headers.sampleRate,
     };
   }
 
   private getRmsInTheLoudestSegment(ampsArray: Float32Array) {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     if (!this.wavData.theLoudestSegment.borders) throw new Error('wavData.theLoudestSegment.borders not defined');
-    if (!this.blocksPerMMilliSeconds) throw new Error('blocksPerMMilliSeconds not defined');
     const segmentRmsDbValues: number[] = [];
     let min = Number.MAX_SAFE_INTEGER;
     let max = Number.MIN_SAFE_INTEGER;
     for (
       let i = 0;
       i < ampsArray.length - this.blocksPerMMilliSeconds;
-      i += Math.floor(RMSHandler.RMS_GETTING_T * this.blocksPerMMilliSeconds)
+      i += Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds)
     ) {
       let segmentRms = 0;
       for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
@@ -350,13 +290,6 @@ export default class RMSHandler {
       segmentRmsDbValues.push(dB);
     }
     return { interval: { min, max }, list: segmentRmsDbValues };
-  }
-
-  private static compressArray(array: Float32Array, compressionRate = RMSHandler.COMPRESSION_RATE) {
-    const result = [] as number[];
-    for (let i = 0; i < array.length - compressionRate; i += compressionRate) result.push(array[i]);
-    console.log(result.length);
-    return new Float32Array(result);
   }
 
   private static processSignal(signal: Float32Array, band: Band) {
@@ -385,17 +318,48 @@ export default class RMSHandler {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public getResults(): Results {
-    if (!this.wavData.headers) throw new Error('wavData.theLoudestSegment.rmsValues not defined');
+  public getRMS(): RMSValues {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
-    if (!this.wavData.theLoudestSegment.rmsValues) throw new Error('wavData.theLoudestSegment.rmsValues not defined');
-    if (!this.wavData.theLoudestSegment.borders) throw new Error('wavData.theLoudestSegment.rmsValues not defined');
+    const all = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(this.wavData.theLoudestSegment.channels.left),
+    );
+
+    const b = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(
+        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.b),
+      ),
+    );
+
+    const lm = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(
+        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.lm),
+      ),
+    );
+
+    const hm = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(
+        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.hm),
+      ),
+    );
+
+    const h = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(
+        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.h),
+      ),
+    );
+    return { all, b, lm, hm, h };
+  }
+
+  public getSpectrum(): SpectrumValues {
+    if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
+    return [];
+  }
+
+  public getTheLoudestSegment(): AudioSegment {
+    if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
+    if (!this.wavData.headers) throw new Error('wavData.theLoudestSegment.rmsValues not defined');
     const start = this.wavData.theLoudestSegment.borders.start / this.wavData.headers.sampleRate;
     const end = this.wavData.theLoudestSegment.borders.end / this.wavData.headers.sampleRate;
-    return {
-      the_loudest_segment: { start, end },
-      rms: this.wavData.theLoudestSegment.rmsValues,
-      time_to_process: this.timeToProcess,
-    };
+    return { start, end };
   }
 }

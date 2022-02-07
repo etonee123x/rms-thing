@@ -3,13 +3,13 @@
 </template>
 
 <script setup lang="ts">
-import { Results } from '@/functions/RMSHandler';
+import { RMSValues } from '@/functions/RMSHandler';
 const props = withDefaults(
   defineProps<{
-    results: Results | null;
+    rmsValues: RMSValues | null;
   }>(),
   {
-    results: null,
+    rmsValues: null,
   },
 );
 </script>
