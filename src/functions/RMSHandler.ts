@@ -3,9 +3,11 @@
 */
 import { Buffer } from 'buffer';
 
+type SampleRateValues = 44100 | 48000;
+
 type Headers = {
   channelsNumber: number;
-  sampleRate: number;
+  sampleRate: SampleRateValues;
   byteRate: number;
   blockAlign: number;
   bitsPerSample: number;
@@ -60,7 +62,6 @@ export type SpectrumOptions = {
 };
 
 export class Filter {
-  private static readonly SAMPLE_RATE = 44100;
   private outPrev = 0;
   private outPrevPrev = 0;
   private c!: number;
@@ -70,12 +71,12 @@ export class Filter {
   private b1!: number;
   private b2!: number;
 
-  constructor(cutoff: number, type: 'hp' | 'lp', resonance = TheAnalyzer.RESONANCE) {
-    type === 'lp' ? this.setLPParams(cutoff, resonance) : this.setHPParams(cutoff, resonance);
+  constructor(cutoff: number, type: 'hp' | 'lp', sampleRate: SampleRateValues, resonance = TheAnalyzer.RESONANCE) {
+    type === 'lp' ? this.setLPParams(cutoff, sampleRate, resonance) : this.setHPParams(cutoff, sampleRate, resonance);
   }
 
-  private setLPParams(cutoff: number, resonance: number) {
-    this.c = 1.0 / Math.tan((Math.PI * cutoff) / Filter.SAMPLE_RATE);
+  private setLPParams(cutoff: number, sampleRate: SampleRateValues, resonance: number) {
+    this.c = 1.0 / Math.tan((Math.PI * cutoff) / sampleRate);
 
     this.a1 = 1.0 / (1.0 + resonance * this.c + this.c * this.c);
     this.a2 = 2 * this.a1;
@@ -84,8 +85,8 @@ export class Filter {
     this.b2 = (1.0 - resonance * this.c + this.c * this.c) * this.a1;
   }
 
-  private setHPParams(cutoff: number, resonance: number) {
-    this.c = Math.tan((Math.PI * cutoff) / Filter.SAMPLE_RATE);
+  private setHPParams(cutoff: number, sampleRate: SampleRateValues, resonance: number) {
+    this.c = Math.tan((Math.PI * cutoff) / sampleRate);
 
     this.a1 = 1.0 / (1.0 + resonance * this.c + this.c * this.c);
     this.a2 = -2 * this.a1;
@@ -384,6 +385,7 @@ export default class TheAnalyzer {
   private blocksPerNSeconds: number;
   private blocksPerMMilliSeconds: number;
   private wavData: WavData;
+  public sampleRate!: SampleRateValues;
 
   private static readonly N_SECONDS_TO_CHECK = 10;
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
@@ -392,7 +394,6 @@ export default class TheAnalyzer {
   private static readonly MAX_16_INT_VALUE = Math.pow(2, 15) - 1;
   private static readonly MAX_16_U_INT_VALUE = Math.pow(2, 16) - 1;
   private static readonly RMS_GETTING_T = 0.1;
-  private static readonly SAMPLE_RATE = 44100;
 
   public static readonly RESONANCE = Math.SQRT2;
 
@@ -403,27 +404,30 @@ export default class TheAnalyzer {
     shouldUseWindowFunction: false,
   };
 
-  public static readonly DEFAULT_RMS_OPTIONS: RMSOptions = {
-    b: {
-      lp: new Filter(100, 'lp'),
-    },
-    lm: {
-      lp: new Filter(2000, 'lp'),
-      hp: new Filter(100, 'hp'),
-    },
-    hm: {
-      lp: new Filter(10000, 'lp'),
-      hp: new Filter(2000, 'hp'),
-    },
-    h: {
-      hp: new Filter(10000, 'hp'),
-    },
-  };
+  public readonly DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE: RMSOptions;
 
   constructor(buffer: Buffer) {
     this.wavData = { compressionRate: TheAnalyzer.COMPRESSION_RATE };
 
     this.wavData.headers = this.readHeaders(buffer);
+
+    this.sampleRate = this.wavData.headers.sampleRate;
+    this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE = {
+      b: {
+        lp: new Filter(100, 'lp', this.sampleRate),
+      },
+      lm: {
+        lp: new Filter(2000, 'lp', this.sampleRate),
+        hp: new Filter(100, 'hp', this.sampleRate),
+      },
+      hm: {
+        lp: new Filter(10000, 'lp', this.sampleRate),
+        hp: new Filter(2000, 'hp', this.sampleRate),
+      },
+      h: {
+        hp: new Filter(10000, 'hp', this.sampleRate),
+      },
+    };
 
     this.wavData.compressedChannels = TheAnalyzer.findValuesInChannels(
       buffer.slice(44, buffer.length),
@@ -462,10 +466,10 @@ export default class TheAnalyzer {
     if (channelsNumber !== 2) throw new Error("this wav file doesn't have 2 channels");
 
     const sampleRate = buffer.readUInt32LE(24);
-    if (sampleRate !== 44100) throw new Error("this wav file doesn't have 44100 sample rate");
+    if (sampleRate !== 44100 && sampleRate !== 48000)
+      throw new Error("this wav file doesn't have 44100 or 48000 sample rate");
 
     const byteRate = buffer.readUInt32LE(28);
-    if (byteRate !== 176400) throw new Error("this wav file doesn't have 176400 bytes per second");
 
     const blockAlign = buffer.readUInt16LE(32);
     if (blockAlign !== 4) throw new Error("this wav file doesn't have 4 bytes per sample");
@@ -593,7 +597,7 @@ export default class TheAnalyzer {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public async getRMS(bands: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS): Promise<RMSValues> {
+  public async getRMS(bands: RMSOptions = this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE): Promise<RMSValues> {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     const channelsData = this.wavData.theLoudestSegment.channels.left;
     const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData));
@@ -634,13 +638,13 @@ export default class TheAnalyzer {
         : rfftMonster.forward(segment);
       result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_U_INT_VALUE)))));
       offset += Math.floor(
-        ((TheAnalyzer.SAMPLE_RATE * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
+        ((this.sampleRate * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
     }
     return result;
   }
 
-  public getTheLoudestSegment(): AudioSegment {
+  public getTheLoudestSegmentTime(): AudioSegment {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     if (!this.wavData.headers) throw new Error('wavData.theLoudestSegment.rmsValues not defined');
     const start = this.wavData.theLoudestSegment.borders.start / this.wavData.headers.sampleRate;
