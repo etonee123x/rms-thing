@@ -395,6 +395,7 @@ export default class TheAnalyzer {
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
   private static readonly COMPRESSION_RATE = 32;
   private static readonly MAX_16_INT_VALUE = Math.pow(2, 15) - 1;
+  private static readonly MAX_16_U_INT_VALUE = Math.pow(2, 16) - 1;
   private static readonly RESONANCE = Math.sqrt(2);
   private static readonly RMS_GETTING_T = 0.1;
   private static readonly SAMPLE_RATE = 44100;
@@ -625,7 +626,7 @@ export default class TheAnalyzer {
       const spectrum = spectrumOptions.shouldUseWindowFunction
         ? hann(rfftMonster.forward(segment))
         : rfftMonster.forward(segment);
-      result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_INT_VALUE)))));
+      result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_U_INT_VALUE)))));
       offset += Math.floor(
         ((TheAnalyzer.SAMPLE_RATE * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
