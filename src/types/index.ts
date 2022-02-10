@@ -1,15 +1,16 @@
-type AvailableTagTypes =
-  | 'artists'
-  | 'track-titles'
-  | 'genres'
-  | 'countries'
-  | 'years';
-type AvailableTagViews = 'text' | 'combobox';
+export type AvailableTagTypes = 'artists' | 'track-titles' | 'genres' | 'countries' | 'years';
+export type AvailableTagViews = 'text' | 'combobox';
 
-type TagType = {
+export type TagType = {
   title: string;
   tagType: AvailableTagTypes;
   view: AvailableTagViews;
 };
 
-export { TagType, AvailableTagTypes, AvailableTagViews };
+export type ActionGroup = 'THE_ANALYZER';
+
+export type Action = {
+  id: number;
+  text: string;
+  time?: string;
+};

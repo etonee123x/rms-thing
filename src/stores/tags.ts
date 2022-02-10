@@ -15,9 +15,7 @@ export const useTagsStore = defineStore('tags', () => {
       case 'artists':
         return (artistsList.value = await tags.getByTagType('artists'));
       case 'track-titles':
-        return (trackTitlesList.value = await tags.getByTagType(
-          'track-titles',
-        ));
+        return (trackTitlesList.value = await tags.getByTagType('track-titles'));
       case 'genres':
         return (genresList.value = await tags.getByTagType('genres'));
       case 'years':
