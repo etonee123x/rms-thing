@@ -3,7 +3,7 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
+      <GraphSpectrum class="page__graph" v-if="spectrumValues" :spectrum-values="spectrumValues" />
       <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
     </div>
   </div>
