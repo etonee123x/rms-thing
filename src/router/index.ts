@@ -22,7 +22,8 @@ const routes = [
     component: () => import('@/views/RMSTestingPage/RMSTestingPage.vue'),
   },
 ];
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+export default router;
