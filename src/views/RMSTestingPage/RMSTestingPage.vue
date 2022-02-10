@@ -20,8 +20,6 @@ const rmsValues = ref<RMSValues | null>(null);
 const spectrumValues = ref<SpectrumValues | null>(null);
 
 const uploaded = async (filesArray: File[]) => {
-  console.time('everything');
-
   console.time('converting');
   const wavData = await convertSingleFile(filesArray[0]);
   console.timeEnd('converting');
@@ -30,19 +28,21 @@ const uploaded = async (filesArray: File[]) => {
   const theAnalyzer = new TheAnalyzer(wavData);
   console.timeEnd('the loudest segment');
 
-  const rmsOptions: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS;
   console.time('rms');
-  rmsValues.value = theAnalyzer.getRMS(rmsOptions);
-  console.timeEnd('rms');
-  console.log(rmsValues.value);
+  const rmsOptions: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS;
+  theAnalyzer.getRMS(rmsOptions).then(result => {
+    rmsValues.value = result;
+    console.timeEnd('rms');
+    console.log(rmsValues.value);
+  });
 
-  const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
   console.time('spectrum');
-  spectrumValues.value = theAnalyzer.getSpectrum(spectrumOptions);
-  console.timeEnd('spectrum');
-  console.log(spectrumValues.value);
-
-  console.timeEnd('everything');
+  const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
+  theAnalyzer.getSpectrum(spectrumOptions).then(result => {
+    spectrumValues.value = result;
+    console.timeEnd('spectrum');
+    console.log(spectrumValues.value);
+  });
 };
 </script>
 

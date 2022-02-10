@@ -593,7 +593,7 @@ export default class TheAnalyzer {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public getRMS(bands: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS): RMSValues {
+  public async getRMS(bands: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS): Promise<RMSValues> {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     const channelsData = this.wavData.theLoudestSegment.channels.left;
     const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData));
@@ -616,7 +616,9 @@ export default class TheAnalyzer {
     return { all, b, lm, hm, h };
   }
 
-  public getSpectrum(spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS): SpectrumValues {
+  public async getSpectrum(
+    spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS,
+  ): Promise<SpectrumValues> {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     const hann = (arr: Float32Array) => {
       return arr.map((el, idx) => el * Math.pow(Math.cos((Math.PI * idx) / arr.length), 2));
