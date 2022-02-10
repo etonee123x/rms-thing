@@ -5,7 +5,7 @@
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
       <div class="page__results">
         <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
+          <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" :nyquist-frequency="nyquistFrequency" />
           <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
         </BaseWaiter>
       </div>
@@ -31,6 +31,7 @@ const actionsList = waitersActions.THE_ANALYZER;
 
 const rmsValues = ref<RMSValues | null>(null);
 const spectrumValues = ref<SpectrumValues | null>(null);
+const nyquistFrequency = ref<number | null>(null);
 
 const uploaded = async (filesArray: File[]) => {
   let wavData;
@@ -49,9 +50,11 @@ const uploaded = async (filesArray: File[]) => {
   waiterStore.removeAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
   console.timeEnd('the loudest segment');
 
+  nyquistFrequency.value = theAnalyzer.sampleRate / 2;
+
   console.time('rms');
   waiterStore.addAction(actionsList.GETTING_RMS);
-  const rmsOptions: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS;
+  const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
   theAnalyzer.getRMS(rmsOptions).then(result => {
     rmsValues.value = result;
     waiterStore.removeAction(actionsList.GETTING_RMS);
