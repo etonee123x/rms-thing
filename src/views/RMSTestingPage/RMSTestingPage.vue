@@ -6,7 +6,7 @@
       <div class="page__results">
         <pre>{{ actionsInProcess }}</pre>
         <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" :nyquist-frequency="nyquistFrequency" />
+          <GraphSpectrum class="page__graph" v-if="spectrumValues" :spectrum-values="spectrumValues" :nyquist-frequency="nyquistFrequency" />
           <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
         </BaseWaiter>
       </div>
