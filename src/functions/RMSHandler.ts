@@ -59,7 +59,7 @@ export type SpectrumOptions = {
   shouldUseWindowFunction: boolean;
 };
 
-class Filter {
+export class Filter {
   private static readonly SAMPLE_RATE = 44100;
   private outPrev = 0;
   private outPrevPrev = 0;
@@ -70,8 +70,8 @@ class Filter {
   private b1!: number;
   private b2!: number;
 
-  constructor(cutoff: number, resonance: number, isLowPass = true) {
-    isLowPass ? this.setLPParams(cutoff, resonance) : this.setHPParams(cutoff, resonance);
+  constructor(cutoff: number, type: 'hp' | 'lp', resonance = TheAnalyzer.RESONANCE) {
+    type === 'lp' ? this.setLPParams(cutoff, resonance) : this.setHPParams(cutoff, resonance);
   }
 
   private setLPParams(cutoff: number, resonance: number) {
@@ -112,16 +112,26 @@ class Filter {
   }
 }
 
+export type RMSOptions = {
+  b: {
+    lp: Filter;
+  };
+  lm: {
+    lp: Filter;
+    hp: Filter;
+  };
+  hm: {
+    lp: Filter;
+    hp: Filter;
+  };
+  h: {
+    hp: Filter;
+  };
+};
+
 interface Band {
   lp?: Filter;
   hp?: Filter;
-}
-
-interface Freqs {
-  b: Band;
-  lm: Band;
-  hm: Band;
-  h: Band;
 }
 
 class FourierTransform {
@@ -374,37 +384,40 @@ export default class TheAnalyzer {
   private blocksPerNSeconds: number;
   private blocksPerMMilliSeconds: number;
   private wavData: WavData;
-  private bands: Freqs = {
-    b: {
-      lp: new Filter(100, TheAnalyzer.RESONANCE),
-    },
-    lm: {
-      lp: new Filter(2000, TheAnalyzer.RESONANCE),
-      hp: new Filter(100, TheAnalyzer.RESONANCE, false),
-    },
-    hm: {
-      lp: new Filter(10000, TheAnalyzer.RESONANCE),
-      hp: new Filter(2000, TheAnalyzer.RESONANCE, false),
-    },
-    h: {
-      hp: new Filter(10000, TheAnalyzer.RESONANCE, false),
-    },
-  };
 
   private static readonly N_SECONDS_TO_CHECK = 10;
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
-  private static readonly COMPRESSION_RATE = 32;
+
+  private static readonly COMPRESSION_RATE = 16;
   private static readonly MAX_16_INT_VALUE = Math.pow(2, 15) - 1;
   private static readonly MAX_16_U_INT_VALUE = Math.pow(2, 16) - 1;
-  private static readonly RESONANCE = Math.sqrt(2);
   private static readonly RMS_GETTING_T = 0.1;
   private static readonly SAMPLE_RATE = 44100;
+
+  public static readonly RESONANCE = Math.SQRT2;
 
   public static readonly DEFAULT_SPECTRUM_OPTIONS: SpectrumOptions = {
     windowSize: 8192,
     delayBetweenOperations: 50,
     overlap: 0,
     shouldUseWindowFunction: false,
+  };
+
+  public static readonly DEFAULT_RMS_OPTIONS: RMSOptions = {
+    b: {
+      lp: new Filter(100, 'lp'),
+    },
+    lm: {
+      lp: new Filter(2000, 'lp'),
+      hp: new Filter(100, 'hp'),
+    },
+    hm: {
+      lp: new Filter(10000, 'lp'),
+      hp: new Filter(2000, 'hp'),
+    },
+    h: {
+      hp: new Filter(10000, 'hp'),
+    },
   };
 
   constructor(buffer: Buffer) {
@@ -580,34 +593,25 @@ export default class TheAnalyzer {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public getRMS(): RMSValues {
+  public getRMS(bands: RMSOptions = TheAnalyzer.DEFAULT_RMS_OPTIONS): RMSValues {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
-    const all = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(this.wavData.theLoudestSegment.channels.left),
-    );
+    const channelsData = this.wavData.theLoudestSegment.channels.left;
+    const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData));
 
     const b = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.b),
-      ),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.b)),
     );
 
     const lm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.lm),
-      ),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.lm)),
     );
 
     const hm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.hm),
-      ),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.hm)),
     );
 
     const h = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(
-        TheAnalyzer.processSignal(this.wavData.theLoudestSegment.channels.left, this.bands.h),
-      ),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.h)),
     );
     return { all, b, lm, hm, h };
   }
