@@ -18,7 +18,7 @@ export const waitersActions: Record<ActionGroup, Record<string, Action>> = {
     },
     GETTING_SPECTRUM: {
       id: 3,
-      text: 'Finding spectrum values',
+      text: 'Calculating spectrum values',
     },
   },
 };

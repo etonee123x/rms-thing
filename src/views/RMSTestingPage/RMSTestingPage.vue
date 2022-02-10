@@ -4,6 +4,7 @@
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
       <div class="page__results">
+        <pre>{{ actionsInProcess }}</pre>
         <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
           <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" :nyquist-frequency="nyquistFrequency" />
           <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
@@ -55,7 +56,7 @@ const uploaded = async (filesArray: File[]) => {
   console.time('rms');
   waiterStore.addAction(actionsList.GETTING_RMS);
   const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
-  theAnalyzer.getRMS(rmsOptions).then(result => {
+  theAnalyzer.getRMS(rmsOptions, false).then(result => {
     rmsValues.value = result;
     waiterStore.removeAction(actionsList.GETTING_RMS);
     console.timeEnd('rms');

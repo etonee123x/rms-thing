@@ -543,7 +543,7 @@ export default class TheAnalyzer {
     };
   }
 
-  private getRmsInTheLoudestSegment(ampsArray: Float32Array) {
+  private getRmsInTheLoudestSegment(ampsArray: Float32Array, fastMode: boolean) {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     if (!this.wavData.theLoudestSegment.borders) throw new Error('wavData.theLoudestSegment.borders not defined');
     const segmentRmsDbValues: number[] = [];
@@ -552,7 +552,7 @@ export default class TheAnalyzer {
     for (
       let i = 0;
       i < ampsArray.length - this.blocksPerMMilliSeconds;
-      i += Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds)
+      i += fastMode ? Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds) : 1
     ) {
       let segmentRms = 0;
       for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
@@ -597,25 +597,28 @@ export default class TheAnalyzer {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public async getRMS(bands: RMSOptions = this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE): Promise<RMSValues> {
+  public async getRMS(
+    bands: RMSOptions = this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE,
+    fastMode = true,
+  ): Promise<RMSValues> {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     const channelsData = this.wavData.theLoudestSegment.channels.left;
-    const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData));
+    const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData, fastMode));
 
     const b = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.b)),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.b), fastMode),
     );
 
     const lm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.lm)),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.lm), fastMode),
     );
 
     const hm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.hm)),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.hm), fastMode),
     );
 
     const h = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.h)),
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.h), fastMode),
     );
     return { all, b, lm, hm, h };
   }
