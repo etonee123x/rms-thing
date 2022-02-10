@@ -13,7 +13,7 @@
 import { ref } from 'vue';
 import BaseFileInput from '@/components/BaseFileUploader.vue';
 import { GraphRMSValues, GraphSpectrum } from '@/components/graphs';
-import TheAnalyzer, { RMSValues, SpectrumValues } from '@/functions/RMSHandler';
+import TheAnalyzer, { RMSValues, SpectrumValues, SpectrumOptions } from '@/functions/RMSHandler';
 import { convertSingleFile } from '@/functions/converters';
 
 const rmsValues = ref<RMSValues | null>(null);
@@ -26,7 +26,10 @@ const uploaded = async (filesArray: File[]) => {
   rmsValues.value = theAnalyzer.getRMS();
   console.log(rmsValues.value);
 
-  spectrumValues.value = theAnalyzer.getSpectrum();
+  const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
+  console.time('s');
+  spectrumValues.value = theAnalyzer.getSpectrum(spectrumOptions);
+  console.timeEnd('s');
   console.log(spectrumValues.value);
 };
 </script>

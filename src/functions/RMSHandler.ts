@@ -32,7 +32,7 @@ export type RMSValues = {
   h: IntervalAndList;
 };
 
-export type SpectrumValues = Float32Array[];
+export type SpectrumValues = Float32Array[] | Uint16Array[] | Uint8Array[];
 
 type AudioSegment = {
   start: number;
@@ -50,6 +50,13 @@ type WavData = {
   compressedChannels?: Channels;
   duration?: number;
   theLoudestSegment?: TheLoudestSegment;
+};
+
+export type SpectrumOptions = {
+  windowSize: 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384;
+  overlap: number;
+  delayBetweenOperations: number;
+  shouldUseWindowFunction: boolean;
 };
 
 class Filter {
@@ -119,56 +126,22 @@ interface Freqs {
 
 class FourierTransform {
   protected readonly bufferSize: number;
-  private readonly sampleRate: number;
-  private readonly bandwidth: number;
   protected peakBand: number;
   protected peak: number;
   protected readonly spectrum: Float32Array;
-  private readonly real: Float32Array;
-  private readonly imag: Float32Array;
-  constructor(bufferSize: number, sampleRate: number) {
+  constructor(bufferSize: number) {
     this.bufferSize = bufferSize;
-    this.sampleRate = sampleRate;
-    this.bandwidth = ((2 / bufferSize) * sampleRate) / 2;
     this.spectrum = new Float32Array(bufferSize / 2);
-    this.real = new Float32Array(bufferSize);
-    this.imag = new Float32Array(bufferSize);
     this.peakBand = 0;
     this.peak = 0;
-  }
-
-  private getBandFrequency(index: number) {
-    return this.bandwidth * index + this.bandwidth / 2;
-  }
-
-  private calculateSpectrum() {
-    const spectrum = this.spectrum;
-    const real = this.real;
-    const imag = this.imag;
-    const bSi = 2 / this.bufferSize;
-    const sqrt = Math.sqrt;
-    let rval, ival, mag;
-
-    for (let i = 0, N = this.bufferSize / 2; i < N; i++) {
-      rval = real[i];
-      ival = imag[i];
-      mag = bSi * sqrt(rval * rval + ival * ival);
-
-      if (mag > this.peak) {
-        this.peakBand = i;
-        this.peak = mag;
-      }
-
-      spectrum[i] = mag;
-    }
   }
 }
 
 class RFFT extends FourierTransform {
   private readonly trans: Float32Array;
   private readonly reverseTable: Uint32Array;
-  constructor(bufferSize: number, sampleRate: number) {
-    super(bufferSize, sampleRate);
+  constructor(bufferSize: number) {
+    super(bufferSize);
     this.trans = new Float32Array(bufferSize);
     this.reverseTable = new Uint32Array(bufferSize);
     this.generateReverseTable();
@@ -421,11 +394,17 @@ export default class TheAnalyzer {
   private static readonly N_SECONDS_TO_CHECK = 10;
   private static readonly M_MILLISECONDS_TO_CHECK = 300;
   private static readonly COMPRESSION_RATE = 32;
-  private static readonly MAX_16_INT_VALUE = Math.pow(2, 15);
+  private static readonly MAX_16_INT_VALUE = Math.pow(2, 15) - 1;
   private static readonly RESONANCE = Math.sqrt(2);
   private static readonly RMS_GETTING_T = 0.1;
-  private static readonly WINDOW_SIZE = 8192;
   private static readonly SAMPLE_RATE = 44100;
+
+  public static readonly DEFAULT_SPECTRUM_OPTIONS: SpectrumOptions = {
+    windowSize: 8192,
+    delayBetweenOperations: 50,
+    overlap: 0,
+    shouldUseWindowFunction: false,
+  };
 
   constructor(buffer: Buffer) {
     this.wavData = { compressionRate: TheAnalyzer.COMPRESSION_RATE };
@@ -632,17 +611,24 @@ export default class TheAnalyzer {
     return { all, b, lm, hm, h };
   }
 
-  public getSpectrum(): SpectrumValues {
+  public getSpectrum(spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS): SpectrumValues {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
-    const result: Float32Array[] = [];
-    const rfftMonster = new RFFT(TheAnalyzer.WINDOW_SIZE, TheAnalyzer.SAMPLE_RATE);
-    for (let i = 0; (i + 1) * TheAnalyzer.WINDOW_SIZE < this.wavData.theLoudestSegment.channels.left.length; i++) {
-      const segment = this.wavData.theLoudestSegment.channels.left.slice(
-        i * TheAnalyzer.WINDOW_SIZE,
-        (i + 1) * TheAnalyzer.WINDOW_SIZE,
+    const hann = (arr: Float32Array) => {
+      return arr.map((el, idx) => el * Math.pow(Math.cos((Math.PI * idx) / arr.length), 2));
+    };
+    const result = [];
+    const rfftMonster = new RFFT(spectrumOptions.windowSize);
+    let offset = 0;
+    const channelsData = this.wavData.theLoudestSegment.channels.left;
+    while (offset + spectrumOptions.windowSize < channelsData.length) {
+      const segment = channelsData.slice(offset, offset + spectrumOptions.windowSize);
+      const spectrum = spectrumOptions.shouldUseWindowFunction
+        ? hann(rfftMonster.forward(segment))
+        : rfftMonster.forward(segment);
+      result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_INT_VALUE)))));
+      offset += Math.floor(
+        ((TheAnalyzer.SAMPLE_RATE * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
-      const spectrum = rfftMonster.forward(segment);
-      result.push(new Float32Array(spectrum));
     }
     return result;
   }
