@@ -34,12 +34,14 @@ const draw = () => {
             let r = 0;
             
             if (value > 0) {
-                r = Math.round(value * 25500);
+                r = Math.round((value / 65535) * 25500);
             }
             
+            /*
             if (i === 0) {
                 console.log(r);
             }
+            */
             
             ctx.fillStyle = 'rgb(' + r + ', 0, 0)';
             ctx.fillRect(x, y, 1, 1);
