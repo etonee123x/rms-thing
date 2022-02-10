@@ -31,19 +31,18 @@ const draw = () => {
     props.spectrumValues.forEach(timestamp => {
         y = height;
         timestamp.forEach((value, i) => {
-            let r = 0;
+            const valueDb = Number((20 * Math.log10(value)).toFixed(2));
+            let percentValueDb = 0;
             
             if (value > 0) {
-                r = Math.round((value / 65535) * 25500);
+                percentValueDb = (valueDb / 120);
             }
             
-            /*
             if (i === 0) {
-                console.log(r);
+                console.log(percentValueDb);
             }
-            */
             
-            ctx.fillStyle = 'rgb(' + r + ', 0, 0)';
+            ctx.fillStyle = getColorForPercentage(percentValueDb);
             ctx.fillRect(x, y, 1, 1);
             y--;
         });
@@ -54,7 +53,121 @@ const draw = () => {
     document.querySelector('.graph-wrapper').appendChild(canvas);
 }
 
+const colors = [
+    {
+        percent: 0.0,
+        color: {
+            r: 0,
+            g: 0,
+            b: 0
+        }
+    },
+    {
+        percent: 0.1,
+        color: {
+            r: 51,
+            g: 51,
+            b: 153
+        }
+    },
+    {
+        percent: 0.2,
+        color: {
+            r: 0,
+            g: 0,
+            b: 255
+        }
+    },
+    {
+        percent: 0.3,
+        color: {
+            r: 51,
+            g: 153,
+            b: 255
+        }
+    },
+    {
+        percent: 0.4,
+        color: {
+            r: 0,
+            g: 255,
+            b: 255
+        }
+    },
+    {
+        percent: 0.5,
+        color: {
+            r: 51,
+            g: 204,
+            b: 51
+        }
+    },
+    {
+        percent: 0.6,
+        color: {
+            r: 102,
+            g: 255,
+            b: 51
+        }
+    },
+    {
+        percent: 0.7,
+        color: {
+            r: 255,
+            g: 255,
+            b: 0
+        }
+    },
+    {
+        percent: 0.8,
+        color: {
+            r: 255,
+            g: 103,
+            b: 51
+        }
+    },
+    {
+        percent: 0.9,
+        color: {
+            r: 255,
+            g: 51,
+            b: 0
+        }
+    },
+    {
+        percent: 1,
+        color: {
+            r: 255,
+            g: 0,
+            b: 0
+        }
+    }
+];
+
+const getColorForPercentage = function(percent)
+{
+    let index = 1;
+    for (let i = 1; i < colors.length - 1; i++) {
+        if (percent < colors[i].percent) {
+            index = i;
+            break;
+        }
+    }
+    
+    const colorStart = colors[index - 1];
+    const colorEnd = colors[index];
+    const percentRange = (percent - colorStart.percent) / (colorEnd.percent - colorStart.percent);
+    const percentMin = 1 - percentRange;
+    const percentMax = percentRange;
+
+    return 'rgb(' +
+        Math.floor(colorStart.color.r * percentMin + colorEnd.color.r * percentMax) + ',' +
+        Math.floor(colorStart.color.g * percentMin + colorEnd.color.g * percentMax) + ',' +
+        Math.floor(colorStart.color.b * percentMin + colorEnd.color.b * percentMax) + ')';
+};
+    
 onMounted(draw);
+    
 </script>
 
 <style lang="scss">
