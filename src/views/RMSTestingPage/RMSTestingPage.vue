@@ -2,22 +2,21 @@
   <div class="page">
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
+      <pre>{{ model }}</pre>
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <div v-if="isAudioChoosen">
-        <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <BaseCheckbox v-model="model.getRMS" class="page__checkbox">Find RMS values</BaseCheckbox>
-          <BaseCheckbox v-model="model.getSpectrum" class="page__checkbox">Draw spectrogram values</BaseCheckbox>
-          <BaseButton class="page__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
-          <div v-if="isProcessingStarted">
-            <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-              <div class="page__results">
-                <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
-                <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
-              </div>
-            </BaseWaiter>
+      <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+        <div class="page__form form">
+          <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
+          <BaseCheckbox v-model="model.getSpectrum" class="form__checkbox">Draw spectrogram values</BaseCheckbox>
+          <BaseButton class="form__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
+        </div>
+        <BaseWaiter :is-enabled="isProcessingStarted" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+          <div class="page__results">
+            <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
+            <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
           </div>
         </BaseWaiter>
-      </div>
+      </BaseWaiter>
     </div>
   </div>
 </template>
