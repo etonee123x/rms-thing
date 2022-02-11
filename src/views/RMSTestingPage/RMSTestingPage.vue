@@ -83,6 +83,14 @@ const process = async () => {
     waiterStore.addAction(actionsList.GETTING_SPECTRUM);
 
     const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
+    /*
+    const spectrumOptionsChanged = {
+        windowSize: 8192,
+        delayBetweenOperations: 5,
+        overlap: 0,
+        shouldUseWindowFunction: false,
+    }
+    */
 
     theAnalyzer.getSpectrum(spectrumOptions).then(result => {
       spectrumResults.value = result;
