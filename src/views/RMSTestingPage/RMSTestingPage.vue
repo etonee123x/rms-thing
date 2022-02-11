@@ -3,21 +3,19 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <div v-if="isAudioChoosen">
-        <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <BaseCheckbox v-model="model.getRMS" class="page__checkbox">Find RMS values</BaseCheckbox>
-          <BaseCheckbox v-model="model.getSpectrum" class="page__checkbox">Draw spectrogram values</BaseCheckbox>
-          <BaseButton class="page__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
-          <div v-if="isProcessingStarted">
-            <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-              <div class="page__results">
-                <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
-                <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
-              </div>
-            </BaseWaiter>
+      <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+        <div class="page__form form">
+          <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
+          <BaseCheckbox v-model="model.getSpectrum" class="form__checkbox">Draw spectrogram values</BaseCheckbox>
+          <BaseButton class="form__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
+        </div>
+        <BaseWaiter :is-enabled="isProcessingStarted" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+          <div class="page__results">
+            <GraphSpectrum v-if="spectrumResults" class="page__graph" :spectrum-values="spectrumResults" />
+            <GraphRMSValues v-if="rmsResults" class="page__graph" :rms-values="rmsResults" />
           </div>
         </BaseWaiter>
-      </div>
+      </BaseWaiter>
     </div>
   </div>
 </template>
@@ -27,6 +25,7 @@ import BaseFileInput from '@/components/BaseFileUploader.vue';
 import { GraphRMSValues, GraphSpectrum } from '@/components/graphs';
 import BaseWaiter from '@/components/BaseWaiter.vue';
 import BaseButton from '@/components/BaseButton.vue';
+import BaseCheckbox from '@/components/BaseCheckbox.vue';
 
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -34,15 +33,14 @@ import TheAnalyzer, { RMSValues, SpectrumValues, SpectrumOptions, RMSOptions } f
 import { convertSingleFile } from '@/functions/converters';
 import { useWaiterStore, waitersActions } from '@/stores/waiter';
 import { Buffer } from 'buffer';
-import BaseCheckbox from '@/components/BaseCheckbox.vue';
 
 const waiterStore = useWaiterStore();
 const isWaiting = storeToRefs(waiterStore).isWaitingForSomething;
 const actionsInProcess = storeToRefs(waiterStore).whatWeAreWaitingFor;
 const actionsList = waitersActions.THE_ANALYZER;
 
-const rmsValues = ref<RMSValues | null>(null);
-const spectrumValues = ref<SpectrumValues | null>(null);
+const rmsResults = ref<RMSValues | null>(null);
+const spectrumResults = ref<SpectrumValues | null>(null);
 const wavData = ref<Buffer | null>(null);
 
 const isAudioChoosen = ref<boolean>(false);
@@ -58,8 +56,7 @@ const model = ref<{
 });
 
 const uploaded = async (filesArray: File[]) => {
-  if (isAudioChoosen.value) return;
-  if (isProcessingStarted.value) return;
+  if (actionsInProcess.value.length) return;
   isAudioChoosen.value = true;
   isProcessingStarted.value = false;
   if (filesArray[0].type === 'audio/wav') return (wavData.value = Buffer.from(await filesArray[0].arrayBuffer()));
@@ -77,7 +74,7 @@ const process = async () => {
     const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
 
     theAnalyzer.getRMS(rmsOptions, false).then(result => {
-      rmsValues.value = result;
+      rmsResults.value = result;
       waiterStore.removeAction(actionsList.GETTING_RMS);
     });
   };
@@ -88,7 +85,7 @@ const process = async () => {
     const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
 
     theAnalyzer.getSpectrum(spectrumOptions).then(result => {
-      spectrumValues.value = result;
+      spectrumResults.value = result;
       waiterStore.removeAction(actionsList.GETTING_SPECTRUM);
     });
   };
