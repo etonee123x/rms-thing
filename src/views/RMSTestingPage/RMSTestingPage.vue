@@ -3,17 +3,19 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <div class="page__results">
-        <pre>{{ actionsInProcess }}</pre>
-        <pre>{{ isWaiting }}</pre>
+      <div v-if="isAudioChoosen">
         <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <GraphSpectrum
-            v-if="spectrumValues"
-            class="page__graph"
-            :spectrum-values="spectrumValues"
-            :nyquist-frequency="nyquistFrequency"
-          />
-          <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
+          <BaseCheckbox v-model="model.getRMS" class="page__checkbox">Find RMS values</BaseCheckbox>
+          <BaseCheckbox v-model="model.getSpectrum" class="page__checkbox">Draw spectrogram values</BaseCheckbox>
+          <BaseButton class="page__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
+          <div v-if="isProcessingStarted">
+            <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+              <div class="page__results">
+                <GraphSpectrum class="page__graph" :spectrum-values="spectrumValues" />
+                <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
+              </div>
+            </BaseWaiter>
+          </div>
         </BaseWaiter>
       </div>
     </div>
@@ -24,13 +26,15 @@
 import BaseFileInput from '@/components/BaseFileUploader.vue';
 import { GraphRMSValues, GraphSpectrum } from '@/components/graphs';
 import BaseWaiter from '@/components/BaseWaiter.vue';
-import { Buffer } from 'buffer';
+import BaseButton from '@/components/BaseButton.vue';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import TheAnalyzer, { RMSValues, SpectrumValues, SpectrumOptions, RMSOptions } from '@/functions/RMSHandler';
 import { convertSingleFile } from '@/functions/converters';
 import { useWaiterStore, waitersActions } from '@/stores/waiter';
+import { Buffer } from 'buffer';
+import BaseCheckbox from '@/components/BaseCheckbox.vue';
 
 const waiterStore = useWaiterStore();
 const isWaiting = storeToRefs(waiterStore).isWaitingForSomething;
@@ -39,39 +43,65 @@ const actionsList = waitersActions.THE_ANALYZER;
 
 const rmsValues = ref<RMSValues | null>(null);
 const spectrumValues = ref<SpectrumValues | null>(null);
-const nyquistFrequency = ref<number | null>(null);
 const wavData = ref<Buffer | null>(null);
 
+const isAudioChoosen = ref<boolean>(false);
+const isProcessingStarted = ref<boolean>(false);
+const isProcessButtonEnabled = computed(() => model.value.getRMS || model.value.getSpectrum);
+
+const model = ref<{
+  getRMS: boolean;
+  getSpectrum: boolean;
+}>({
+  getRMS: true,
+  getSpectrum: false,
+});
+
 const uploaded = async (filesArray: File[]) => {
-  if (filesArray[0].type === 'audio/wav') wavData.value = Buffer.from(await filesArray[0].arrayBuffer());
-  else {
-    waiterStore.addAction(actionsList.CONVERTING);
-    console.log(actionsInProcess.value);
-    wavData.value = await convertSingleFile(filesArray[0]);
-    waiterStore.removeAction(actionsList.CONVERTING);
-    console.log(actionsInProcess.value);
-  }
+  if (isAudioChoosen.value) return;
+  if (isProcessingStarted.value) return;
+  isAudioChoosen.value = true;
+  isProcessingStarted.value = false;
+  if (filesArray[0].type === 'audio/wav') return (wavData.value = Buffer.from(await filesArray[0].arrayBuffer()));
+
+  waiterStore.addAction(actionsList.CONVERTING);
+  wavData.value = await convertSingleFile(filesArray[0]);
+  waiterStore.removeAction(actionsList.CONVERTING);
 };
-const calculateAudioData = async (wavData: Buffer) => {
+
+const process = async () => {
+  if (!wavData.value) return;
+  const getRMS = async () => {
+    waiterStore.addAction(actionsList.GETTING_RMS);
+
+    const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
+
+    theAnalyzer.getRMS(rmsOptions, false).then(result => {
+      rmsValues.value = result;
+      waiterStore.removeAction(actionsList.GETTING_RMS);
+    });
+  };
+
+  const getSpectrum = async () => {
+    waiterStore.addAction(actionsList.GETTING_SPECTRUM);
+
+    const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
+
+    theAnalyzer.getSpectrum(spectrumOptions).then(result => {
+      spectrumValues.value = result;
+      waiterStore.removeAction(actionsList.GETTING_SPECTRUM);
+    });
+  };
+
+  isProcessingStarted.value = true;
+
   waiterStore.addAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
-  const theAnalyzer = new TheAnalyzer(wavData);
+  const theAnalyzer = new TheAnalyzer(wavData.value);
   waiterStore.removeAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
 
-  nyquistFrequency.value = theAnalyzer.sampleRate / 2;
+  if (model.value.getRMS) getRMS();
 
-  waiterStore.addAction(actionsList.GETTING_RMS);
-  const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
-  theAnalyzer.getRMS(rmsOptions, false).then(result => {
-    rmsValues.value = result;
-    waiterStore.removeAction(actionsList.GETTING_RMS);
-  });
-
-  waiterStore.addAction(actionsList.GETTING_SPECTRUM);
-  const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
-  theAnalyzer.getSpectrum(spectrumOptions).then(result => {
-    spectrumValues.value = result;
-    waiterStore.removeAction(actionsList.GETTING_SPECTRUM);
-  });
+  if (model.value.getSpectrum) getSpectrum();
 };
 </script>
 
@@ -80,6 +110,8 @@ const calculateAudioData = async (wavData: Buffer) => {
   &__title {
     @include font-page-title;
     margin: 0 0 1rem 1rem;
+  }
+  &__content {
   }
 }
 </style>

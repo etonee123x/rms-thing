@@ -34,7 +34,10 @@ export type RMSValues = {
   h: IntervalAndList;
 };
 
-export type SpectrumValues = Float32Array[] | Uint16Array[] | Uint8Array[];
+export type SpectrumValues = {
+  spectrum: Float32Array[];
+  nyquistFrequency: number;
+};
 
 type AudioSegment = {
   start: number;
@@ -639,12 +642,12 @@ export default class TheAnalyzer {
       const spectrum = spectrumOptions.shouldUseWindowFunction
         ? hann(rfftMonster.forward(segment))
         : rfftMonster.forward(segment);
-      result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_U_INT_VALUE)))));
+      result.push(new Float32Array(spectrum.map(el => (el <= 0 ? 0 : el))));
       offset += Math.floor(
         ((this.sampleRate * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
     }
-    return result;
+    return { spectrum: result, nyquistFrequency: this.sampleRate / 2 };
   }
 
   public getTheLoudestSegmentTime(): AudioSegment {
