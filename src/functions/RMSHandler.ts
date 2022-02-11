@@ -37,6 +37,8 @@ export type RMSValues = {
 export type SpectrumValues = {
   spectrum: Float32Array[];
   nyquistFrequency: number;
+  lengthX: number;
+  lengthY: number;
 };
 
 type AudioSegment = {
@@ -647,7 +649,12 @@ export default class TheAnalyzer {
         ((this.sampleRate * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
     }
-    return { spectrum: result, nyquistFrequency: this.sampleRate / 2 };
+    return {
+      spectrum: result,
+      lengthX: result.length,
+      lengthY: spectrumOptions.windowSize / 2,
+      nyquistFrequency: this.sampleRate / 2,
+    };
   }
 
   public getTheLoudestSegmentTime(): AudioSegment {
