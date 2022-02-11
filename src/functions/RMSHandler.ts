@@ -26,15 +26,27 @@ type IntervalAndList = {
   list: number[];
 };
 
+interface RMSValue extends IntervalAndList {
+  textBand: {
+    from: number | string;
+    to: number | string;
+  };
+}
+
 export type RMSValues = {
-  all: IntervalAndList;
-  b: IntervalAndList;
-  lm: IntervalAndList;
-  hm: IntervalAndList;
-  h: IntervalAndList;
+  all: RMSValue;
+  b: RMSValue;
+  lm: RMSValue;
+  hm: RMSValue;
+  h: RMSValue;
 };
 
-export type SpectrumValues = Float32Array[] | Uint16Array[] | Uint8Array[];
+export type SpectrumValues = {
+  spectrum: Float32Array[];
+  nyquistFrequency: number;
+  lengthX: number;
+  lengthY: number;
+};
 
 type AudioSegment = {
   start: number;
@@ -70,8 +82,12 @@ export class Filter {
   private a3!: number;
   private b1!: number;
   private b2!: number;
+  private cutoff: number;
+  private type: 'hp' | 'lp';
 
   constructor(cutoff: number, type: 'hp' | 'lp', sampleRate: SampleRateValues, resonance = TheAnalyzer.RESONANCE) {
+    this.cutoff = cutoff;
+    this.type = type;
     type === 'lp' ? this.setLPParams(cutoff, sampleRate, resonance) : this.setHPParams(cutoff, sampleRate, resonance);
   }
 
@@ -110,6 +126,14 @@ export class Filter {
       result.push(out);
     }
     return new Float32Array(result);
+  }
+
+  public getCutoff() {
+    return this.cutoff;
+  }
+
+  public getType() {
+    return this.type;
   }
 }
 
@@ -543,7 +567,7 @@ export default class TheAnalyzer {
     };
   }
 
-  private getRmsInTheLoudestSegment(ampsArray: Float32Array) {
+  private getRmsInTheLoudestSegment(ampsArray: Float32Array, fastMode: boolean) {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     if (!this.wavData.theLoudestSegment.borders) throw new Error('wavData.theLoudestSegment.borders not defined');
     const segmentRmsDbValues: number[] = [];
@@ -552,7 +576,7 @@ export default class TheAnalyzer {
     for (
       let i = 0;
       i < ampsArray.length - this.blocksPerMMilliSeconds;
-      i += Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds)
+      i += fastMode ? Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds) : 1
     ) {
       let segmentRms = 0;
       for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
@@ -597,27 +621,65 @@ export default class TheAnalyzer {
     return { interval: { min, max }, list: intervalAndList.list };
   }
 
-  public async getRMS(bands: RMSOptions = this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE): Promise<RMSValues> {
+  public async getRMS(
+    bands: RMSOptions = this.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE,
+    fastMode = true,
+  ): Promise<RMSValues> {
     if (!this.wavData.theLoudestSegment) throw new Error('wavData.theLoudestSegment not defined');
     const channelsData = this.wavData.theLoudestSegment.channels.left;
-    const all = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData));
 
-    const b = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.b)),
-    );
+    let intervalAndList;
 
-    const lm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.lm)),
-    );
+    intervalAndList = TheAnalyzer.arrToIntervalAndList(this.getRmsInTheLoudestSegment(channelsData, fastMode));
+    const all: RMSValue = {
+      interval: intervalAndList.interval,
+      list: intervalAndList.list,
+      textBand: { from: 0, to: 'max' },
+    };
 
-    const hm = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.hm)),
+    intervalAndList = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.b), fastMode),
     );
+    const b: RMSValue = {
+      interval: intervalAndList.interval,
+      list: intervalAndList.list,
+      textBand: { from: 0, to: bands.b.lp.getCutoff() },
+    };
 
-    const h = TheAnalyzer.arrToIntervalAndList(
-      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.h)),
+    intervalAndList = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.lm), fastMode),
     );
-    return { all, b, lm, hm, h };
+    const lm: RMSValue = {
+      interval: intervalAndList.interval,
+      list: intervalAndList.list,
+      textBand: { from: bands.lm.hp.getCutoff(), to: bands.lm.lp.getCutoff() },
+    };
+
+    intervalAndList = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.hm), fastMode),
+    );
+    const hm: RMSValue = {
+      interval: intervalAndList.interval,
+      list: intervalAndList.list,
+      textBand: { from: bands.hm.hp.getCutoff(), to: bands.hm.lp.getCutoff() },
+    };
+
+    intervalAndList = TheAnalyzer.arrToIntervalAndList(
+      this.getRmsInTheLoudestSegment(TheAnalyzer.processSignal(channelsData, bands.h), fastMode),
+    );
+    const h: RMSValue = {
+      interval: intervalAndList.interval,
+      list: intervalAndList.list,
+      textBand: { from: bands.h.hp.getCutoff(), to: 'max' },
+    };
+
+    return {
+      all,
+      b,
+      lm,
+      hm,
+      h,
+    };
   }
 
   public async getSpectrum(
@@ -636,12 +698,17 @@ export default class TheAnalyzer {
       const spectrum = spectrumOptions.shouldUseWindowFunction
         ? hann(rfftMonster.forward(segment))
         : rfftMonster.forward(segment);
-      result.push(new Uint16Array(spectrum.map(el => (el <= 0 ? 0 : Math.floor(el * TheAnalyzer.MAX_16_U_INT_VALUE)))));
+      result.push(new Float32Array(spectrum.map(el => (el <= 0 ? 0 : el))));
       offset += Math.floor(
         ((this.sampleRate * spectrumOptions.delayBetweenOperations) / 1000) * (1 - spectrumOptions.overlap),
       );
     }
-    return result;
+    return {
+      spectrum: result,
+      lengthX: result.length,
+      lengthY: spectrumOptions.windowSize / 2,
+      nyquistFrequency: this.sampleRate / 2,
+    };
   }
 
   public getTheLoudestSegmentTime(): AudioSegment {

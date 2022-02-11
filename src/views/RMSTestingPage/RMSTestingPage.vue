@@ -3,12 +3,19 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <div class="page__results">
-        <BaseWaiter :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
-          <GraphSpectrum class="page__graph" v-if="spectrumValues" :spectrum-values="spectrumValues" :nyquist-frequency="nyquistFrequency" />
-          <GraphRMSValues class="page__graph" :rms-values="rmsValues" />
+      <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+        <div class="page__form form">
+          <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
+          <BaseCheckbox v-model="model.getSpectrum" class="form__checkbox">Draw spectrogram values</BaseCheckbox>
+          <BaseButton class="form__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
+        </div>
+        <BaseWaiter :is-enabled="isProcessingStarted" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+          <div class="page__results">
+            <GraphSpectrum v-if="spectrumResults" class="page__graph" :spectrum-values="spectrumResults" />
+            <GraphRMSValues v-if="rmsResults" class="page__graph" :rms-values="rmsResults" />
+          </div>
         </BaseWaiter>
-      </div>
+      </BaseWaiter>
     </div>
   </div>
 </template>
@@ -17,60 +24,81 @@
 import BaseFileInput from '@/components/BaseFileUploader.vue';
 import { GraphRMSValues, GraphSpectrum } from '@/components/graphs';
 import BaseWaiter from '@/components/BaseWaiter.vue';
-import { Buffer } from 'buffer';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseCheckbox from '@/components/BaseCheckbox.vue';
 
 import { computed, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import TheAnalyzer, { RMSValues, SpectrumValues, SpectrumOptions, RMSOptions } from '@/functions/RMSHandler';
 import { convertSingleFile } from '@/functions/converters';
 import { useWaiterStore, waitersActions } from '@/stores/waiter';
+import { Buffer } from 'buffer';
 
 const waiterStore = useWaiterStore();
-const isWaiting = computed(() => waiterStore.isWaitingForSomething);
-const actionsInProcess = computed(() => waiterStore.whatWeAreWaitingFor);
+const isWaiting = storeToRefs(waiterStore).isWaitingForSomething;
+const actionsInProcess = storeToRefs(waiterStore).whatWeAreWaitingFor;
 const actionsList = waitersActions.THE_ANALYZER;
 
-const rmsValues = ref<RMSValues | null>(null);
-const spectrumValues = ref<SpectrumValues | null>(null);
-const nyquistFrequency = ref<number | null>(null);
+const rmsResults = ref<RMSValues | null>(null);
+const spectrumResults = ref<SpectrumValues | null>(null);
+const wavData = ref<Buffer | null>(null);
+
+const isAudioChoosen = ref<boolean>(false);
+const isProcessingStarted = ref<boolean>(false);
+const isProcessButtonEnabled = computed(() => model.value.getRMS || model.value.getSpectrum);
+
+const model = ref<{
+  getRMS: boolean;
+  getSpectrum: boolean;
+}>({
+  getRMS: true,
+  getSpectrum: false,
+});
 
 const uploaded = async (filesArray: File[]) => {
-  let wavData;
-  if (filesArray[0].type === 'audio/wav') wavData = Buffer.from(await filesArray[0].arrayBuffer());
-  else {
-    console.time('converting');
-    waiterStore.addAction(actionsList.CONVERTING);
-    wavData = await convertSingleFile(filesArray[0]);
-    waiterStore.removeAction(actionsList.CONVERTING);
-    console.timeEnd('converting');
-  }
+  if (actionsInProcess.value.length) return;
+  isAudioChoosen.value = true;
+  isProcessingStarted.value = false;
+  if (filesArray[0].type === 'audio/wav') return (wavData.value = Buffer.from(await filesArray[0].arrayBuffer()));
 
-  console.time('the loudest segment');
+  waiterStore.addAction(actionsList.CONVERTING);
+  wavData.value = await convertSingleFile(filesArray[0]);
+  waiterStore.removeAction(actionsList.CONVERTING);
+};
+
+const process = async () => {
+  if (!wavData.value) return;
+  const getRMS = async () => {
+    waiterStore.addAction(actionsList.GETTING_RMS);
+
+    const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
+
+    theAnalyzer.getRMS(rmsOptions, false).then(result => {
+      rmsResults.value = result;
+      waiterStore.removeAction(actionsList.GETTING_RMS);
+    });
+  };
+
+  const getSpectrum = async () => {
+    waiterStore.addAction(actionsList.GETTING_SPECTRUM);
+
+    const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
+
+    theAnalyzer.getSpectrum(spectrumOptions).then(result => {
+      spectrumResults.value = result;
+      waiterStore.removeAction(actionsList.GETTING_SPECTRUM);
+    });
+  };
+
+  isProcessingStarted.value = true;
+
   waiterStore.addAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
-  const theAnalyzer = new TheAnalyzer(wavData);
+  const theAnalyzer = new TheAnalyzer(wavData.value);
   waiterStore.removeAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
-  console.timeEnd('the loudest segment');
 
-  nyquistFrequency.value = theAnalyzer.sampleRate / 2;
+  if (model.value.getRMS) getRMS();
 
-  console.time('rms');
-  waiterStore.addAction(actionsList.GETTING_RMS);
-  const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
-  theAnalyzer.getRMS(rmsOptions).then(result => {
-    rmsValues.value = result;
-    waiterStore.removeAction(actionsList.GETTING_RMS);
-    console.timeEnd('rms');
-    console.log(rmsValues.value);
-  });
-
-  console.time('spectrum');
-  waiterStore.addAction(actionsList.GETTING_SPECTRUM);
-  const spectrumOptions: SpectrumOptions = TheAnalyzer.DEFAULT_SPECTRUM_OPTIONS;
-  theAnalyzer.getSpectrum(spectrumOptions).then(result => {
-    spectrumValues.value = result;
-    waiterStore.removeAction(actionsList.GETTING_SPECTRUM);
-    console.timeEnd('spectrum');
-    console.log(spectrumValues.value);
-  });
+  if (model.value.getSpectrum) getSpectrum();
 };
 </script>
 
@@ -79,6 +107,8 @@ const uploaded = async (filesArray: File[]) => {
   &__title {
     @include font-page-title;
     margin: 0 0 1rem 1rem;
+  }
+  &__content {
   }
 }
 </style>
