@@ -11,8 +11,8 @@
         </div>
         <BaseWaiter :is-enabled="isProcessingStarted" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
           <div class="page__results">
-            <GraphSpectrum v-if="spectrumResults" class="page__graph" :spectrum-values="spectrumResults" />
             <GraphRMSValues v-if="rmsResults" class="page__graph" :rms-values="rmsResults" />
+            <GraphSpectrum v-if="spectrumResults" class="page__graph" :spectrum-values="spectrumResults" />
           </div>
         </BaseWaiter>
       </BaseWaiter>
