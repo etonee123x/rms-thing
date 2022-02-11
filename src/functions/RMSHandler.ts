@@ -26,7 +26,7 @@ type IntervalAndList = {
   list: number[];
 };
 
-interface RMSValue extends IntervalAndList {
+export interface RMSValue extends IntervalAndList {
   textBand: {
     from: number | string;
     to: number | string;
