@@ -46,7 +46,7 @@ const draw = () => {
             }
             */
             
-            ctx.fillStyle = getColorForDb(valueDb, colorsForScale[1]);
+            ctx.fillStyle = getColorForDb(valueDb, colorsForScale[2]);
             ctx.fillRect(x, y, 1, 1);
             y--;
         });
@@ -242,6 +242,68 @@ const colorsForScale = [
                     r: 255,
                     g: 255,
                     b: 255
+                }
+            }
+        ]
+    },
+    {
+        minDb: -100,
+        maxDb: 0,
+        stops: [
+            {
+                db: -130,
+                color: {
+                    r: 0,
+                    g: 0,
+                    b: 0
+                }
+            },
+            {
+                db: -68,
+                color: {
+                    r: 128,
+                    g: 0,
+                    b: 128
+                }
+            },
+            {
+                db: -59,
+                color: {
+                    r: 0,
+                    g: 0,
+                    b: 255
+                }
+            },
+            {
+                db: -51,
+                color: {
+                    r: 0,
+                    g: 255,
+                    b: 255
+                }
+            },
+            {
+                db: -45,
+                color: {
+                    r: 0,
+                    g: 255,
+                    b: 0
+                }
+            },
+            {
+                db: -39,
+                color: {
+                    r: 255,
+                    g: 255,
+                    b: 0
+                }
+            },
+            {
+                db: 0,
+                color: {
+                    r: 255,
+                    g: 0,
+                    b: 0
                 }
             }
         ]
