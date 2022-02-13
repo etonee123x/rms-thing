@@ -3,6 +3,7 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
+      <pre>{{ onLoading }}</pre>
       <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
         <div class="page__form form">
           <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
@@ -43,6 +44,20 @@ const rmsResults = ref<RMSValues | null>(null);
 const spectrumResults = ref<SpectrumValues | null>(null);
 const wavData = ref<Buffer | null>(null);
 
+const onLoading = ref<{
+  all: string;
+  b: string;
+  lm: string;
+  hm: string;
+  h: string;
+}>({
+  all: '???',
+  b: '???',
+  lm: '???',
+  hm: '???',
+  h: '???',
+});
+
 const isAudioChoosen = ref<boolean>(false);
 const isProcessingStarted = ref<boolean>(false);
 const isProcessButtonEnabled = computed(() => model.value.getRMS || model.value.getSpectrum);
@@ -73,10 +88,15 @@ const process = async () => {
 
     const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
 
-    theAnalyzer.getRMS(rmsOptions, false).then(result => {
-      rmsResults.value = result;
-      waiterStore.removeAction(actionsList.GETTING_RMS);
+    rmsResults.value = await theAnalyzer.getRMSAsync(rmsOptions, {
+      useFastMode: true,
+      onLoading: (bandTitle, p) => {
+        onLoading.value[bandTitle] = `${(p * 100).toFixed(2)}%`;
+        // console.log(`${bandTitle}: ${(p * 100).toFixed(2)}%`);
+      },
     });
+
+    waiterStore.removeAction(actionsList.GETTING_RMS);
   };
 
   const getSpectrum = async () => {
@@ -96,7 +116,7 @@ const process = async () => {
   const theAnalyzer = new TheAnalyzer(wavData.value);
   waiterStore.removeAction(actionsList.GETTING_THE_LOUDEST_SEGMENT);
 
-  if (model.value.getRMS) getRMS();
+  if (model.value.getRMS) await getRMS();
 
   if (model.value.getSpectrum) getSpectrum();
 };
