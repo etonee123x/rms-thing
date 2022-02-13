@@ -3,6 +3,7 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
+      <pre>{{ onLoading }}</pre>
       <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
         <div class="page__form form">
           <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
@@ -43,6 +44,20 @@ const rmsResults = ref<RMSValues | null>(null);
 const spectrumResults = ref<SpectrumValues | null>(null);
 const wavData = ref<Buffer | null>(null);
 
+const onLoading = ref<{
+  all: string;
+  b: string;
+  lm: string;
+  hm: string;
+  h: string;
+}>({
+  all: '???',
+  b: '???',
+  lm: '???',
+  hm: '???',
+  h: '???',
+});
+
 const isAudioChoosen = ref<boolean>(false);
 const isProcessingStarted = ref<boolean>(false);
 const isProcessButtonEnabled = computed(() => model.value.getRMS || model.value.getSpectrum);
@@ -76,7 +91,8 @@ const process = async () => {
     rmsResults.value = await theAnalyzer.getRMSAsync(rmsOptions, {
       useFastMode: true,
       onLoading: (bandTitle, p) => {
-        console.log(`${bandTitle}: ${(p * 100).toFixed(2)}%`);
+        onLoading.value[bandTitle] = `${(p * 100).toFixed(2)}%`;
+        // console.log(`${bandTitle}: ${(p * 100).toFixed(2)}%`);
       },
     });
 

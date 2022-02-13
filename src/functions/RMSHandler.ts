@@ -597,21 +597,25 @@ export default class TheAnalyzer {
       }>(resolve => {
         if (i < end)
           setTimeout(() => {
-            let segmentRms = 0;
-            for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
-              let lc = ampsArray[i + j];
-              lc = lc > 1 ? 1 : lc < -1 ? -1 : lc;
-              const lc2 = lc * lc;
-              const lc2DivN = lc2 / this.blocksPerMMilliSeconds;
-              segmentRms += lc2DivN;
+            let index = i;
+            for (; index < i + 1000; index++) {
+              let segmentRms = 0;
+              if (index > end) break;
+              for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
+                let lc = ampsArray[i + j];
+                lc = lc > 1 ? 1 : lc < -1 ? -1 : lc;
+                const lc2 = lc * lc;
+                const lc2DivN = lc2 / this.blocksPerMMilliSeconds;
+                segmentRms += lc2DivN;
+              }
+              segmentRms = Math.sqrt(segmentRms);
+              const dB = Number((20 * Math.log10(segmentRms)).toFixed(2));
+              if (dB > max) max = dB;
+              else if (dB < min) min = dB;
+              segmentRmsDbValues.push(dB);
             }
-            segmentRms = Math.sqrt(segmentRms);
-            const dB = Number((20 * Math.log10(segmentRms)).toFixed(2));
-            if (dB > max) max = dB;
-            else if (dB < min) min = dB;
-            segmentRmsDbValues.push(dB);
-            if (otherOptions?.onLoading) otherOptions?.onLoading(bandTitle, i / end);
-            return resolve(calculateRMSAsync(i + cycleSum));
+            if (otherOptions?.onLoading) otherOptions?.onLoading(bandTitle, index / end);
+            return resolve(calculateRMSAsync(index + cycleSum));
           }, 0);
         else {
           const results = { interval: { min, max }, list: segmentRmsDbValues };
