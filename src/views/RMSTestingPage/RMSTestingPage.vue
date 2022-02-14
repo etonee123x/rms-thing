@@ -88,11 +88,8 @@ const process = async () => {
     const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
 
     rmsResults.value = await theAnalyzer.getRMSAsync(rmsOptions, {
-      useFastMode: false,
       onLoading: ({ progress }) => {
-        // onLoading.value[bandTitle] = `${(progress * 100).toFixed(2)}%`;
         progressBar.value = progress;
-        // console.log(`${bandTitle}: ${(p * 100).toFixed(2)}%`);
       },
     });
 
@@ -127,8 +124,6 @@ const process = async () => {
   &__title {
     @include font-page-title;
     margin: 0 0 1rem 1rem;
-  }
-  &__content {
   }
 }
 </style>
