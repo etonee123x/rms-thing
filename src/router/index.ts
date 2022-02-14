@@ -1,6 +1,6 @@
-import { createWebHistory, createRouter } from 'vue-router';
+import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router';
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'index',
@@ -10,6 +10,13 @@ const routes = [
     path: '/admin-page',
     name: 'admin-page',
     component: () => import('@/views/AdminPage/AdminPage.vue'),
+    beforeEnter: () => {
+      if (
+        localStorage.THE_PASSWORD !== import.meta.env.VITE_SECRET &&
+        sessionStorage.THE_PASSWORD !== import.meta.env.VITE_SECRET
+      )
+        return '/login';
+    },
   },
   {
     path: '/about',
@@ -20,6 +27,11 @@ const routes = [
     path: '/rms-testing',
     name: 'rms-testing',
     component: () => import('@/views/RMSTestingPage/RMSTestingPage.vue'),
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/LoginPage/LoginPage.vue'),
   },
 ];
 const router = createRouter({

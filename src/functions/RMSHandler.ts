@@ -76,7 +76,7 @@ type onLoadingParams = {
 
 type OtherOptions = {
   useFastMode?: boolean;
-  onLoading?: (arg0: onLoadingParams) => any;
+  onLoading?: (arg0: onLoadingParams) => unknown;
 };
 
 export class Filter {
@@ -574,10 +574,7 @@ export default class TheAnalyzer {
 
   private async getRmsInTheLoudestSegmentAsync(
     ampsArray: Float32Array,
-    callback: (result: IntervalAndList) => {
-      bandTitle: BandTitles;
-      value: RMSValue;
-    },
+    callback: (result: IntervalAndList) => RMSValue,
     bandTitle: BandTitles,
     otherOptions?: OtherOptions,
   ) {
@@ -590,20 +587,12 @@ export default class TheAnalyzer {
     const cycleSum = otherOptions?.useFastMode
       ? Math.floor(TheAnalyzer.RMS_GETTING_T * this.blocksPerMMilliSeconds)
       : 1;
-    const calculateRMSAsync = async (
-      i: number,
-    ): Promise<{
-      bandTitle: BandTitles;
-      value: RMSValue;
-    }> =>
-      new Promise<{
-        bandTitle: BandTitles;
-        value: RMSValue;
-      }>(resolve => {
+    const calculateRMSAsync = async (i: number): Promise<RMSValue> =>
+      new Promise<RMSValue>(resolve => {
         if (i < end)
           setTimeout(() => {
             let index = i;
-            for (; index < i + 3000; index++) {
+            for (; index < i + 5000; index++) {
               let segmentRms = 0;
               if (index > end) break;
               for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
@@ -662,15 +651,11 @@ export default class TheAnalyzer {
     const calculateAll = () =>
       this.getRmsInTheLoudestSegmentAsync(
         channelsData,
-        (res: IntervalAndList) => {
-          return {
-            bandTitle: 'all',
-            value: TheAnalyzer.arrayToRMSValue(res, {
-              from: 0,
-              to: 'max',
-            }),
-          };
-        },
+        (res: IntervalAndList) =>
+          TheAnalyzer.arrayToRMSValue(res, {
+            from: 0,
+            to: 'max',
+          }),
         'all',
         options,
       );
@@ -678,15 +663,11 @@ export default class TheAnalyzer {
     const calculateB = () =>
       this.getRmsInTheLoudestSegmentAsync(
         TheAnalyzer.processSignal(channelsData, bands.b),
-        (res: IntervalAndList) => {
-          return {
-            bandTitle: 'b',
-            value: TheAnalyzer.arrayToRMSValue(res, {
-              from: 0,
-              to: bands.b.lp.getCutoff(),
-            }),
-          };
-        },
+        (res: IntervalAndList) =>
+          TheAnalyzer.arrayToRMSValue(res, {
+            from: 0,
+            to: bands.b.lp.getCutoff(),
+          }),
         'b',
         options,
       );
@@ -694,15 +675,11 @@ export default class TheAnalyzer {
     const calculateLM = () =>
       this.getRmsInTheLoudestSegmentAsync(
         TheAnalyzer.processSignal(channelsData, bands.lm),
-        (res: IntervalAndList) => {
-          return {
-            bandTitle: 'lm',
-            value: TheAnalyzer.arrayToRMSValue(res, {
-              from: bands.lm.hp.getCutoff(),
-              to: bands.lm.lp.getCutoff(),
-            }),
-          };
-        },
+        (res: IntervalAndList) =>
+          TheAnalyzer.arrayToRMSValue(res, {
+            from: bands.lm.hp.getCutoff(),
+            to: bands.lm.lp.getCutoff(),
+          }),
         'lm',
         options,
       );
@@ -710,15 +687,11 @@ export default class TheAnalyzer {
     const calculateHM = () =>
       this.getRmsInTheLoudestSegmentAsync(
         TheAnalyzer.processSignal(channelsData, bands.hm),
-        (res: IntervalAndList) => {
-          return {
-            bandTitle: 'hm',
-            value: TheAnalyzer.arrayToRMSValue(res, {
-              from: bands.hm.hp.getCutoff(),
-              to: bands.hm.lp.getCutoff(),
-            }),
-          };
-        },
+        (res: IntervalAndList) =>
+          TheAnalyzer.arrayToRMSValue(res, {
+            from: bands.hm.hp.getCutoff(),
+            to: bands.hm.lp.getCutoff(),
+          }),
         'hm',
         options,
       );
@@ -726,25 +699,23 @@ export default class TheAnalyzer {
     const calculateH = () =>
       this.getRmsInTheLoudestSegmentAsync(
         TheAnalyzer.processSignal(channelsData, bands.h),
-        (res: IntervalAndList) => {
-          return {
-            bandTitle: 'h',
-            value: TheAnalyzer.arrayToRMSValue(res, {
-              from: bands.h.hp.getCutoff(),
-              to: 'max',
-            }),
-          };
-        },
+        (res: IntervalAndList) =>
+          TheAnalyzer.arrayToRMSValue(res, {
+            from: bands.h.hp.getCutoff(),
+            to: 'max',
+          }),
         'h',
         options,
       );
 
     return Promise.all([calculateAll(), calculateB(), calculateLM(), calculateHM(), calculateH()]).then(r => {
-      const result = {} as RMSValues;
-      r.forEach(v => {
-        result[v.bandTitle] = v.value;
-      });
-      return result;
+      return {
+        all: r[0],
+        b: r[1],
+        lm: r[2],
+        hm: r[3],
+        h: r[4],
+      };
     });
   }
 

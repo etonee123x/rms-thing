@@ -2,20 +2,13 @@
   <div class="page">
     <div class="page__title">Admin page</div>
     <div class="page__content">
-      <BaseFileInput
-        :allow-multiple="true"
-        class="page__file-input"
-        @uploaded="uploaded"
-      />
+      <BaseFileInput :allow-multiple="true" class="page__file-input" @uploaded="uploaded" />
       <FileExplorer
         v-if="adminStore.choosenTracks.length"
         :files="adminStore.choosenTracks"
         class="page__file-explorer"
       />
-      <BaseTagDefiner
-        v-if="adminStore.choosenTracks.length"
-        class="page__tag-definer"
-      />
+      <BaseTagDefiner v-if="adminStore.choosenTracks.length" class="page__tag-definer" />
     </div>
   </div>
 </template>
