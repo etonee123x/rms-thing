@@ -3,14 +3,23 @@
     <div class="page__title">RMS testing page</div>
     <div class="page__content">
       <BaseFileInput class="page__file-input" @uploaded="uploaded" />
-      <pre>{{ onLoading }}</pre>
-      <BaseWaiter :is-enabled="isAudioChoosen" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+      <BaseWaiter
+        :progress="progressBar"
+        :is-enabled="isAudioChoosen"
+        :is-waiting="isWaiting"
+        :actions-in-process="actionsInProcess"
+      >
         <div class="page__form form">
           <BaseCheckbox v-model="model.getRMS" class="form__checkbox">Find RMS values</BaseCheckbox>
           <BaseCheckbox v-model="model.getSpectrum" class="form__checkbox">Draw spectrogram values</BaseCheckbox>
           <BaseButton class="form__button" :enabled="isProcessButtonEnabled" @click="process">Process</BaseButton>
         </div>
-        <BaseWaiter :is-enabled="isProcessingStarted" :is-waiting="isWaiting" :actions-in-process="actionsInProcess">
+        <BaseWaiter
+          :progress="progressBar"
+          :is-enabled="isProcessingStarted"
+          :is-waiting="isWaiting"
+          :actions-in-process="actionsInProcess"
+        >
           <div class="page__results">
             <GraphRMSValues v-if="rmsResults" class="page__graph" :rms-values="rmsResults" />
             <GraphSpectrum v-if="spectrumResults" class="page__graph" :spectrum-values="spectrumResults" />
@@ -44,19 +53,7 @@ const rmsResults = ref<RMSValues | null>(null);
 const spectrumResults = ref<SpectrumValues | null>(null);
 const wavData = ref<Buffer | null>(null);
 
-const onLoading = ref<{
-  all: string;
-  b: string;
-  lm: string;
-  hm: string;
-  h: string;
-}>({
-  all: '???',
-  b: '???',
-  lm: '???',
-  hm: '???',
-  h: '???',
-});
+const progressBar = ref<number | null>();
 
 const isAudioChoosen = ref<boolean>(false);
 const isProcessingStarted = ref<boolean>(false);
@@ -77,7 +74,9 @@ const uploaded = async (filesArray: File[]) => {
   if (filesArray[0].type === 'audio/wav') return (wavData.value = Buffer.from(await filesArray[0].arrayBuffer()));
 
   waiterStore.addAction(actionsList.CONVERTING);
-  wavData.value = await convertSingleFile(filesArray[0]);
+  wavData.value = await convertSingleFile(filesArray[0], ({ ratio }) => {
+    progressBar.value = ratio;
+  });
   waiterStore.removeAction(actionsList.CONVERTING);
 };
 
@@ -89,9 +88,10 @@ const process = async () => {
     const rmsOptions: RMSOptions = theAnalyzer.DEFAULT_RMS_OPTIONS_FOR_THIS_SAMPLE_RATE;
 
     rmsResults.value = await theAnalyzer.getRMSAsync(rmsOptions, {
-      useFastMode: true,
-      onLoading: (bandTitle, p) => {
-        onLoading.value[bandTitle] = `${(p * 100).toFixed(2)}%`;
+      useFastMode: false,
+      onLoading: ({ progress }) => {
+        // onLoading.value[bandTitle] = `${(progress * 100).toFixed(2)}%`;
+        progressBar.value = progress;
         // console.log(`${bandTitle}: ${(p * 100).toFixed(2)}%`);
       },
     });

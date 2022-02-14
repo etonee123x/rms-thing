@@ -69,9 +69,14 @@ export type SpectrumOptions = {
   shouldUseWindowFunction: boolean;
 };
 
+type onLoadingParams = {
+  bandTitle: BandTitles;
+  progress: number;
+};
+
 type OtherOptions = {
   useFastMode?: boolean;
-  onLoading?: (bandTitle: BandTitles, p: number) => unknown;
+  onLoading?: (arg0: onLoadingParams) => any;
 };
 
 export class Filter {
@@ -598,7 +603,7 @@ export default class TheAnalyzer {
         if (i < end)
           setTimeout(() => {
             let index = i;
-            for (; index < i + 1000; index++) {
+            for (; index < i + 3000; index++) {
               let segmentRms = 0;
               if (index > end) break;
               for (let j = 0; j < this.blocksPerMMilliSeconds; j++) {
@@ -614,12 +619,12 @@ export default class TheAnalyzer {
               else if (dB < min) min = dB;
               segmentRmsDbValues.push(dB);
             }
-            if (otherOptions?.onLoading) otherOptions?.onLoading(bandTitle, index / end);
+            if (otherOptions?.onLoading) otherOptions?.onLoading({ bandTitle, progress: index / end });
             return resolve(calculateRMSAsync(index + cycleSum));
           }, 0);
         else {
           const results = { interval: { min, max }, list: segmentRmsDbValues };
-          if (otherOptions?.onLoading) otherOptions?.onLoading(bandTitle, 1);
+          if (otherOptions?.onLoading) otherOptions?.onLoading({ bandTitle, progress: 1 });
           return resolve(callback(results));
         }
       });
