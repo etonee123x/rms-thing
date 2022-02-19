@@ -29,12 +29,10 @@ export const useWaiterStore = defineStore('waiter', () => {
 
   const addAction = (action: Action) => {
     whatWeAreWaitingFor.value.push(action);
-    console.log('+1 action to wait:', whatWeAreWaitingFor.value);
   };
 
   const removeAction = (action: Action) => {
     whatWeAreWaitingFor.value = whatWeAreWaitingFor.value.filter(el => el.id !== action.id);
-    console.log('-1 action to wait:', whatWeAreWaitingFor.value);
   };
 
   const removeAll = () => {
