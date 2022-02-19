@@ -1,23 +1,27 @@
 <template>
   <div class="page">
-    <div class="page__title">Admin page</div>
-    <div class="page__content">
-      <BaseFileInput :allow-multiple="true" class="page__file-input" @uploaded="uploaded" />
-      <FileExplorer
-        v-if="adminStore.choosenTracks.length"
-        :files="adminStore.choosenTracks"
-        class="page__file-explorer"
-      />
-      <BaseTagDefiner v-if="adminStore.choosenTracks.length" class="page__tag-definer" />
-    </div>
+    <BaseAuth>
+      <div class="page__title">Admin page</div>
+      <div class="page__content">
+        <BaseFileInput :allow-multiple="true" class="page__file-input" @uploaded="uploaded" />
+        <FileExplorer
+          v-if="adminStore.choosenTracks.length"
+          :files="adminStore.choosenTracks"
+          class="page__file-explorer"
+        />
+        <BaseTagDefiner v-if="adminStore.choosenTracks.length" class="page__tag-definer" />
+      </div>
+    </BaseAuth>
   </div>
 </template>
 
 <script setup lang="ts">
 import BaseFileInput from '@/components/BaseFileUploader.vue';
 import FileExplorer from '@/components/FileExplorer.vue';
-import { useAdminStore } from '@/stores/admin';
 import BaseTagDefiner from '@/components/TagDefiner.vue';
+import BaseAuth from '@/components/BaseAuth.vue';
+import { useAdminStore } from '@/stores/admin';
+
 const adminStore = useAdminStore();
 
 const uploaded = (filesArray: File[]) => {

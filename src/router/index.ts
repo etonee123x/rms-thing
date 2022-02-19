@@ -10,13 +10,6 @@ const routes: RouteRecordRaw[] = [
     path: '/admin-page',
     name: 'admin-page',
     component: () => import('@/views/AdminPage/AdminPage.vue'),
-    beforeEnter: () => {
-      if (
-        localStorage.THE_PASSWORD !== import.meta.env.VITE_SECRET &&
-        sessionStorage.THE_PASSWORD !== import.meta.env.VITE_SECRET
-      )
-        return '/login';
-    },
   },
   {
     path: '/about',
@@ -27,11 +20,6 @@ const routes: RouteRecordRaw[] = [
     path: '/rms-testing',
     name: 'rms-testing',
     component: () => import('@/views/RMSTestingPage/RMSTestingPage.vue'),
-  },
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/views/LoginPage/LoginPage.vue'),
   },
 ];
 const router = createRouter({
